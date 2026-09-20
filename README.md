@@ -22,13 +22,13 @@
 
 ## 构建
 
-需要 JDK 17、Android SDK API 36 与 Build Tools 35.0.0。Windows：
+需要 JDK 17、Android SDK API 36 与 Build Tools 35.0.0。新电脑首次构建需要下载工具和依赖；此 Windows 工作区可按 [开发环境交接](docs/development-setup.md) 复用已缓存的工具。Windows：
 
 ```powershell
 .\gradlew.bat testDebugUnitTest lintDebug assembleDebug
 ```
 
-非 Windows 使用 `./gradlew`。首次构建需要访问 Google Maven、Maven Central 与 Gradle 官方分发站；App 运行时不联网。构建生成的调试 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。本机另有自然声更新副本 `deliverables/minimal-sleep-nature-debug.apk`；APK 未纳入 Git，仓库源码不能直接下载此文件。它使用本机调试签名，尚非正式发布版。Android 8.0 及以上可尝试安装；MIUI/HyperOS 可能需要从手机文件管理器手动确认安装。
+非 Windows 使用 `./gradlew`。首次构建需要访问 Google Maven、Maven Central 与 Gradle 官方分发站；App 运行时不联网。构建生成的调试 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。APK 不纳入 Git；已核验的自然声试用包可从 [v0.2.0-preview.1 预发布页](https://github.com/Resker666/minimal-sleep/releases/tag/v0.2.0-preview.1) 下载。它使用本机调试签名，尚非正式发布版。Android 8.0 及以上可尝试安装；MIUI/HyperOS 可能需要从手机文件管理器手动确认安装。
 
 夜间试用时将手机置于稳定位置、麦克风无遮挡，先做仅播放、仅记录和同时运行的短测，再做锁屏与整夜测试。播放器可能受到耳机断开、其他应用音频焦点和系统后台限制影响，请按 [真机验证步骤](docs/validation.md) 记录结果。
 

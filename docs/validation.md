@@ -57,6 +57,12 @@
 - `lintDebug testDebugUnitTest assembleDebug` 退出码 0，`.tools/nature-build.log` 末尾 `BUILD SUCCESSFUL in 1m 21s`，58 个任务；8 个 JVM 单元测试通过。APK `deliverables/minimal-sleep-nature-debug.apk` 为 27145533 字节，SHA-256 `4CA6B8E041BA79210A56C0AE3AEC7116A164B10AE019D254781C3B5F71E73171`。`apksigner verify --verbose` 显示 v2 签名有效；`aapt2 dump badging` 显示 versionCode 2、minSdk 26、targetSdk 35；`aapt2 dump permissions` 未列出 `INTERNET`。APK ZIP 内有 `res/raw/heavy_rain.wav`（2304044 字节）及 `res/raw/ocean_waves.wav`（3840044 字节）。
 - `adb push` 将 APK 写入手机 `/sdcard/Download/minimal-sleep-nature-debug.apk`，手机文件大小 27145533 字节。由于 ADB 安装此前被手机拒绝，正在等待用户从文件管理器手动更新；安装和两种自然声听感尚未验证，不能列为通过。
 
+## 构建环境交接验证（2026-09-20）
+
+- 仓库已推送到公开的 `Resker666/minimal-sleep`，`main` 与本地 `c491883c336ff2c8e34755b0c4bf206b3aa88859` 一致；GitHub `v0.2.0-preview.1` 为预发布版，公开 API 返回 1 个 `uploaded` APK 附件、27145533 字节及与本地一致的 SHA-256。录音及 `.tools/` 未进入 Git。
+- 在现有 Windows 工作区复用 `.tools`，不设置 `MINIMAL_SLEEP_MAVEN_PROXY` 而运行 `--offline` 时退出码 1：无法从不同仓库 URL 的缓存解析 Kotlin kapt 插件，日志 `.tools/offline-build-check.log`。
+- 保留 `MINIMAL_SLEEP_MAVEN_PROXY=http://127.0.0.1:8765/m2` 并运行同一 `--offline` 构建，退出码 0：`.tools/offline-build-proxy-cache-check.log`，`BUILD SUCCESSFUL in 41s`，58 个任务、47 个已是最新。`--offline` 运行未访问代理网络。复用命令与新电脑要求见 `docs/development-setup.md`。
+
 ### 安装后短测顺序
 
 1. 打开 App；只播放白、粉红、棕三种声音各 1 分钟，检查循环点、音量、通知暂停、锁屏继续、耳机拔出暂停与其他应用抢占焦点。记录设备音量、路由与异常。
