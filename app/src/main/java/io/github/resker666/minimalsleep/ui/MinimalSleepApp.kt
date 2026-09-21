@@ -2,6 +2,8 @@ package io.github.resker666.minimalsleep.ui
 
 import android.content.ComponentName
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -29,8 +32,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -38,10 +43,14 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
+import io.github.resker666.minimalsleep.playback.ImportedSoundStore
 import io.github.resker666.minimalsleep.playback.SoundCatalog
 import io.github.resker666.minimalsleep.playback.SoundPlaybackService
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MinimalSleepApp() {
@@ -93,6 +102,29 @@ fun MinimalSleepApp() {
 @Composable
 private fun TonightScreen(controller: MediaController?, error: String?, modifier: Modifier = Modifier) {
     val state = PlaybackUiState
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val importedStore = remember(context) { ImportedSoundStore(context) }
+    var imported by remember { mutableStateOf(importedStore.list()) }
+    var importError by remember { mutableStateOf<String?>(null) }
+    var importing by remember { mutableStateOf(false) }
+    var requestedSoundId by remember { mutableStateOf<String?>(null) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null && !importing) scope.launch {
+            importing = true
+            try {
+                val sound = withContext(Dispatchers.IO) { importedStore.import(uri) }
+                imported = importedStore.list()
+                importError = null
+                requestedSoundId = sound.id
+                controller?.sendCustomCommand(
+                    SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
+                    Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.id) }
+                )
+            } catch (failure: Exception) { importError = "导入失败：${failure.message}" }
+            finally { importing = false }
+        }
+    }
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -105,8 +137,9 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(SoundCatalog.HEAVY_RAIN, SoundCatalog.OCEAN_WAVES).forEach { sound ->
                         FilterChip(
-                            selected = state.sound == sound,
+                            selected = state.soundId == sound.name,
                             onClick = {
+                                requestedSoundId = sound.name
                                 controller?.sendCustomCommand(
                                     SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
                                     Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.name) }
@@ -120,8 +153,9 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(SoundCatalog.WHITE, SoundCatalog.PINK, SoundCatalog.BROWN).forEach { sound ->
                         FilterChip(
-                            selected = state.sound == sound,
+                            selected = state.soundId == sound.name,
                             onClick = {
+                                requestedSoundId = sound.name
                                 controller?.sendCustomCommand(
                                     SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
                                     Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.name) }
@@ -132,6 +166,37 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
                         )
                     }
                 }
+                Text("手机本地音频", style = MaterialTheme.typography.titleMedium)
+                Text("从系统文件选择器导入音频；复制到 App 私有目录后可离线循环播放。最多 10 个，单个不超过 100 MiB，总计不超过 300 MiB。", style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { picker.launch(arrayOf("audio/*")) }, enabled = !importing) { Text(if (importing) "正在导入…" else "导入本地音频") }
+                imported.forEach { sound ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = state.soundId == sound.id,
+                            onClick = {
+                                requestedSoundId = sound.id
+                                controller?.sendCustomCommand(
+                                    SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
+                                    Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.id) }
+                                )
+                            },
+                            enabled = controller != null,
+                            label = { Text(sound.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = {
+                            if (state.isPlaying || importing || state.soundId == sound.id || state.pendingSoundId == sound.id || requestedSoundId == sound.id) return@TextButton
+                            scope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) { importedStore.delete(sound.id) }
+                                    imported = importedStore.list()
+                                } catch (failure: Exception) { importError = "删除失败：${failure.message}" }
+                            }
+                        }, enabled = !state.isPlaying && !importing && state.soundId != sound.id && state.pendingSoundId != sound.id && requestedSoundId != sound.id) { Text("删除") }
+                    }
+                }
+                if (imported.any { it.id == state.soundId }) Text("正在使用：${state.soundLabel}", style = MaterialTheme.typography.bodySmall)
+                importError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Button(
                     onClick = { if (state.isPlaying) controller?.pause() else controller?.play() },
                     enabled = controller != null,

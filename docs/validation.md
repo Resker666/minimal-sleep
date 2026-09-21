@@ -70,3 +70,17 @@
 3. 拒绝麦克风权限：确认仅播放仍可用。授权后做 2–5 分钟仅录音，制造几次可识别的普通声音，结束后在“记录”页回听原音、删除单条与整夜记录。请勿使用私人录音作为提交样本。
 4. 同时播放白噪声和录音，检查时间轴有播放区间、重叠片段有干扰标记；记录白噪声音量与摆位。回听时先停止录音。
 5. 短测通过后做至少 30 分钟锁屏试录；记录实际有效样本时长、缺口、音频占用、起止电量和系统后台限制。随后安排 8 小时整夜测试；未完成之前状态保持“待验证”。
+
+## 2026-09-21 续测：锁屏采集、本地模型与文件导入
+
+- 从当前 `main` 干净状态 `729cdca` 建立 `codex/continue-m3-m5` 分支开发；原已公开预发布 `v0.2.0-preview.1` 未改动。手机 `23127PN0CC`，Android API 36，原安装 versionCode 2。`.tools/jdk/jdk17.0.20_10`、`.tools/android-sdk-ready`、`.tools/gradle/gradle-8.13`、`.tools/gradle-home` 均存在，沿用 `docs/development-setup.md` 的离线构建环境。未把手机录音复制到电脑或上传。
+- 经用户允许，2026-09-21 07:52:19（UTC+8）启动“仅记录”，07:52:36 锁屏，`dumpsys power` 为 `Dozing`；录音服务持续显示 `isForeground=true foregroundId=1201`。超过 08:22:19 后经 App “结束记录”确认。记录页显示该会话 `COMPLETED`、有效采集 **1,918 秒**、18 个片段/18 个事件组、0 秒助眠声播放、未显示中断缺口；停止后前台录音服务不再存在。录音目录总占用 `adb shell run-as io.github.resker666.minimalsleep du -sk files/recordings` 为 10,976 KiB，但包含先前会话，不能归作本次用量。开始电量 19%、结束 25%，全程 USB 充电，不能据此估算不充电耗电。手机另有一条先前 28,006 秒 `COMPLETED` 记录，测试条件未知，不算本轮受控整夜测试。
+- 模型来源、Apache-2.0 标注、归档/权重/标签 SHA-256 与 521 标签索引记录在 `docs/model-assets.md`。Python 版官方 LiteRT 对同一权重做了输入输出冒烟测试：16 kHz 单声道浮点 15,600 样本输入，`[1,521]` 输出；静音、仓库合成噪声/大雨/海浪均非鼾声准确率验收样本。`com.google.ai.edge.litert:litert:1.4.2` 及 API AAR/POM 从 Google Maven 获取到忽略的本地缓存。首次构建因本地代理网络 502 失败（`.tools/m3-build-first.log`）；手动从官方 Maven 缓存四个公开文件后 `.tools/m3-build-second.log` 成功。构建只下载公开依赖，App 无网络权限。
+- Room schema v2 由构建生成在 `app/schemas/io.github.resker666.minimalsleep.data.SleepDatabase/2.json`；真机从 versionCode 2 升级到 3 再升级到 4，旧的 1,918 秒、28,006 秒与约 4 秒会话仍在记录页显示，旧片段标记“旧版录音，无自动分类”，因此至少在此设备上迁移保留成功。
+- 本轮最终 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，日志 `.tools/m3-import-final-build6.log`：`BUILD SUCCESSFUL in 1m 31s`，58 个任务。15 个 JVM 测试、0 失败；新增分类规则测试 4 个、区间/分组统计测试 3 个。此前一轮 Lint 因 `MediaMetadataRetriever.use` 需要 API 29 而失败，见 `.tools/m3-import-final-build.log`；改为 `release()` 后通过，没有压制错误。代码审查发现的分类队列遗留状态、快速切声、导入/删除并发及切换期误删风险，已在最终构建前修正。
+- 最终 APK `deliverables/minimal-sleep-v0.3.1-dev-debug-r4.apk`，51,446,126 字节，SHA-256 `684F16EA29479BE4BAE7BE6350A7C6F7CABA7254C0E05F3D1A8CB29B23A71FC1`。`apksigner verify --verbose` 显示 v2 签名有效；`aapt2 dump badging` 为 versionCode 4、versionName `0.3.1-dev`、minSdk 26、targetSdk 35；`aapt2 dump permissions` 仅列前台服务、麦克风、WAKE_LOCK 与应用内部动态接收器权限，`HasInternet=False`。`adb install -r` 返回 `Success`，`dumpsys package` 确认手机上 versionCode 4。此 APK 是本机调试签名，不是正式发布版。
+- 从系统文件选择器选取**本仓库原创** `ocean_waves.wav` 测试（3,840,044 字节），导入后 `run-as` 可见 App 私有目录同大小 WAV；`dumpsys media_session` 显示 `PLAYING`、元数据为该导入文件，播放位置从 0 推进至 11,643 ms，随后可暂停。再次升级 App 后导入文件仍在；修正长文件名挤出按钮问题后，真机可见并点击“删除”，私有导入目录变为 `total 0`。推送到手机 `Download` 的原创测试源 WAV 经设备和本机 SHA-256 一致后已删除。未导入或查看用户自己的音频。
+- 同时播放这段合成海浪并采集约 38 秒，记录页有 1 个 20.416 秒片段、1 个事件组、38 秒播放区间和播放干扰标记；本地模型实际加载，生成 `Speech` 未校准分数 0.59，初次显示“人声/疑似梦话”。这在已知只有合成海浪播放的测试中是明确误报。最终 0.3.1-dev 按播放干扰将该片段显示和计数为“未确定（播放干扰）”，仍显示原模型候选、分数与版本；真机升级后 UI 已核对为 `未确定（播放干扰）：0 / 1`。这只证明干扰标记与降级显示，不证明回声消除或分类准确率。App 测试结束已暂停播放。
+- 最终 r4 安装后，ADB 快速点击“大雨→海浪→大雨”，`dumpsys media_session` 为大雨 `PLAYING`；再次选海浪并紧接媒体暂停按键，返回海浪 `PAUSED`。这是快速操作回归，不能保证覆盖所有 150 ms 时序排列。随后确认无录音前台服务且播放器为 `PAUSED`。
+- `adb shell pm path io.github.resker666.minimalsleep` 找到已安装 `base.apk`；`adb shell sha256sum` 得到 `684F16EA29479BE4BAE7BE6350A7C6F7CABA7254C0E05F3D1A8CB29B23A71FC1`，与 r4 本地 APK SHA-256 完全一致，确认手机装的是最终修订包。
+- 未完成验证：真实鼾声/人声/咳嗽分开的合法样本、误报/漏报、导入 MP3/M4A 等其他格式、定时实际到期/10 秒淡出、循环接缝、耳机拔出和焦点、权限拒绝、空间不足、来电/蓝牙、受控 8 小时整夜及不充电耗电。请勿从本节推断睡眠质量或呼吸暂停。
