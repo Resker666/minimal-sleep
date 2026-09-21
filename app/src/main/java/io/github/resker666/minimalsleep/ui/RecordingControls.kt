@@ -56,7 +56,14 @@ fun RecordingControls(controller: MediaController?) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("夜间声音记录", style = MaterialTheme.typography.titleMedium)
-            Text("仅保存触发的一般声音片段。自动分类尚未启用；可能漏掉安静的人声。", style = MaterialTheme.typography.bodySmall)
+            Text("仅保存触发的声音片段。本地模型给出疑似类别，可能漏掉安静的人声或误判。", style = MaterialTheme.typography.bodySmall)
+            Text(
+                when (state.classifierStatus) {
+                    "READY" -> "本地分类已启用；结果不是医学判断。"
+                    "UNAVAILABLE" -> "模型不可用；录音仍会保存为普通声音。"
+                    else -> "首次保存片段后尝试加载本地模型。"
+                }, style = MaterialTheme.typography.bodySmall
+            )
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("同时播放助眠声音")
                 Switch(checked = playAlong, onCheckedChange = { playAlong = it }, enabled = state.status == "STOPPED")
