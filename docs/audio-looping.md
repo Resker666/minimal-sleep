@@ -20,6 +20,12 @@ python tools/prepare_loop.py --input 'source/待处理.mp3' --output 'deliverabl
 
 2026-09-21 已将 v4 七段试听文件复制到手机 `Download/minimal-sleep-loop-previews-v4/`，电脑与手机 SHA-256 一致。`rain-01.ogg` 已在现有 App 中导入和短时播放成功，测试副本随后已从 App 中删除。可从 App 的“导入本地音频”逐段选择并试听。**尚未完成连续循环听感或整夜试播验收。**
 
+## 仅本机调试包（2026-09-22）
+
+用户已允许裁剪并要求内置试听，但原作者再分发授权仍待提供。为便于这台手机试听，把 `rain-01.ogg`（大雨）和 `rain-04.ogg`（雨雷）复制到被 Git 忽略的 `app/src/debug/assets/local-sounds/`，原件和 v4 候选均未改动。应用仅在发现这些可选文件时显示“本机素材试听”选项；正常源码仓库没有该目录，release 构建也不含这两段音频。它们使用现有 Media3 播放器的循环和定时逻辑，录音时仍按播放区间标记干扰，不声称消除回声。
+
+私有调试 APK 为 `deliverables/minimal-sleep-v0.3.1-local-rain-debug.apk`。它只供本机安装和听感验证，**不得上传 GitHub、发送给他人或作为公开 Release 发布**。当前只做了短时真机播放，298 秒接缝、主观响度和整夜播放仍需试听。若要正式内置，先满足下方许可门槛，再按实际授权范围决定能否把素材放进仓库与公开 APK。
+
 ## 内置前的门槛
 
 为每段拟内置音频保存原作者、原始链接、明确允许修改并随 APK 分发的许可或书面授权、署名要求和文件哈希。确认后只挑选少量听感不同的片段放入 App，更新 `assets-manifest.csv`、`THIRD_PARTY_NOTICES.md` 和 UI 名称，再构建并在手机上重复试听。当前仓库的 Apache-2.0 源码许可证不自动覆盖这些外来录音。没有授权证明时，保持用户自己在手机上本地导入的方式。

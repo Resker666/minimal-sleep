@@ -2,6 +2,7 @@
 .idea/
 .tools/
 /deliverables/
+/app/src/debug/assets/local-sounds/
 **/build/
 local.properties
 *.iml

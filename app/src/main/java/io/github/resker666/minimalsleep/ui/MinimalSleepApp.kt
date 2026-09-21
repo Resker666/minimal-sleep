@@ -44,6 +44,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
 import io.github.resker666.minimalsleep.playback.ImportedSoundStore
+import io.github.resker666.minimalsleep.playback.LocalPreviewSounds
 import io.github.resker666.minimalsleep.playback.SoundCatalog
 import io.github.resker666.minimalsleep.playback.SoundPlaybackService
 import kotlin.math.ceil
@@ -105,6 +106,7 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val importedStore = remember(context) { ImportedSoundStore(context) }
+    val localPreviews = remember(context) { LocalPreviewSounds.available(context) }
     var imported by remember { mutableStateOf(importedStore.list()) }
     var importError by remember { mutableStateOf<String?>(null) }
     var importing by remember { mutableStateOf(false) }
@@ -159,6 +161,24 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
                                 controller?.sendCustomCommand(
                                     SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
                                     Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.name) }
+                                )
+                            },
+                            enabled = controller != null,
+                            label = { Text(sound.label) }
+                        )
+                    }
+                }
+                if (localPreviews.isNotEmpty()) {
+                    Text("本机素材试听", style = MaterialTheme.typography.titleMedium)
+                    Text("雨声剪辑仅供这台设备试听；原作者分发授权尚待核实。", style = MaterialTheme.typography.bodySmall)
+                    localPreviews.forEach { sound ->
+                        FilterChip(
+                            selected = state.soundId == sound.id,
+                            onClick = {
+                                requestedSoundId = sound.id
+                                controller?.sendCustomCommand(
+                                    SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
+                                    Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.id) }
                                 )
                             },
                             enabled = controller != null,
