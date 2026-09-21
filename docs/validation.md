@@ -84,3 +84,12 @@
 - 最终 r4 安装后，ADB 快速点击“大雨→海浪→大雨”，`dumpsys media_session` 为大雨 `PLAYING`；再次选海浪并紧接媒体暂停按键，返回海浪 `PAUSED`。这是快速操作回归，不能保证覆盖所有 150 ms 时序排列。随后确认无录音前台服务且播放器为 `PAUSED`。
 - `adb shell pm path io.github.resker666.minimalsleep` 找到已安装 `base.apk`；`adb shell sha256sum` 得到 `684F16EA29479BE4BAE7BE6350A7C6F7CABA7254C0E05F3D1A8CB29B23A71FC1`，与 r4 本地 APK SHA-256 完全一致，确认手机装的是最终修订包。
 - 未完成验证：真实鼾声/人声/咳嗽分开的合法样本、误报/漏报、导入 MP3/M4A 等其他格式、定时实际到期/10 秒淡出、循环接缝、耳机拔出和焦点、权限拒绝、空间不足、来电/蓝牙、受控 8 小时整夜及不充电耗电。请勿从本节推断睡眠质量或呼吸暂停。
+
+## 2026-09-21 用户素材本地循环试听准备
+
+- 开始前 `git status --short --branch` 为干净的 `codex/continue-m3-m5`；本轮建立 `codex/loop-audio-previews`。`source/` 有 7 段 MP3，合计 301,860,865 字节（287.9 MiB）：两段 230.95 秒/508.82 秒，五段约 3,601–3,676 秒。`git ls-files --stage source` 为空，`.gitignore` 的 `*.mp3` 排除原件。没有发现这 7 段的许可文件或文件内版权标签；用户表示稍后提供授权信息，故没有加入源码、公开 APK 或 Release。目录中没有海浪素材。
+- 新增 `tools/prepare_loop.py`：在原件不变、目标不存在的前提下，选取时段、尾首交叉淡化、限制 PCM 峰值并输出 Ogg Vorbis。先写 3 个测试，首次 `python -m unittest tools.test_prepare_loop -v` 退出码 1，因脚本尚不存在而有 2 个预期失败；实现后通过。增加响亮交叉区测试时先实际看到解码峰值 `1.4183` 导致失败；修复滤镜内部采样格式与限幅后通过。增加可选降低增益测试时先因未知 `--gain` 参数失败，实现后通过。增加目标文件竞态测试时先因缺少排他发布函数而失败，实现后通过，避免其他进程新建的文件被误删。最终 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0：10 个测试、0 失败，其中 6 个为新增剪辑测试。测试覆盖输出时长/接缝、拒绝覆盖、越界拒绝、交叉区削波、降低增益与发布竞态。
+- 五段长雨声均从第 600 秒选取 300 秒、尾首交叉淡化 2 秒。最终仅以 `deliverables/audio-previews-v4/` 为候选；`manifest.json` 记录每段输入/输出 SHA-256、处理参数和 `permissionToRedistribute=UNVERIFIED`。五个 v4 Ogg 经 `ffprobe` 均为 298.000 秒、44.1 kHz 双声道 Vorbis，大小分别为 4,097,198、4,367,408、4,417,870、4,198,196、4,326,801 字节。全部经 FFmpeg `-xerror` 完整解码；各声道峰值最大 0.843，假定以 0.707/声道混合为单声道的峰值最大 0.930，首末单采样差各声道最大 0.0188。数值不能证明循环接缝听不出。早期 v1–v3 预览留在忽略目录中，仅 v4 为候选。
+- 两段短 MP3 只复制为 `cicada-original.mp3` 与 `storm-original.mp3` 供试听，原文件未裁剪。蝉鸣音频以 0.1 秒窗、RMS 0.001 阈值检测，开头约 0.4 秒与结尾约 0.3 秒较安静，直接循环可能有音量低谷；雷雨声未显示同样的阈值下静音窗。仍需耳听验收。
+- 用户允许短暂使用手机后，ADB 设备为 `23127PN0CC`。7 段 v4 试听文件已推送至 `/sdcard/Download/minimal-sleep-loop-previews-v4/`，逐一以 `adb shell sha256sum` 对照本机 `Get-FileHash`，7/7 一致。没有从手机复制录音。
+- 现有 versionCode 4 App 经系统文件选择器导入 `rain-01.ogg`，界面显示“正在使用：rain-01.ogg”；`dumpsys media_session` 显示该本地文件 `PLAYING`，位置从约 34.6 秒推进至 40.3 秒。随后暂停，切回内置大雨并在 App 中删除这次导入的副本；UI 无 `rain-01.ogg` 条目，私有导入目录无同大小文件。这个短测只证明该手机能导入与播放 Ogg，未等到 298 秒循环点，也未证明其他四段听感。手机“下载”中的试听文件保留供用户逐段比较。本轮没有构建新 APK。

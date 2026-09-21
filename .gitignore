@@ -1,6 +1,7 @@
 .gradle/
 .idea/
 .tools/
+/deliverables/
 **/build/
 local.properties
 *.iml
