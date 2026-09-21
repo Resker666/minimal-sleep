@@ -10,4 +10,6 @@ object RecordingUiState {
     var error by mutableStateOf<String?>(null)
         internal set
     var startedPlayback by mutableStateOf(false)
+    var classifierStatus by mutableStateOf("WAITING")
+        internal set
 }

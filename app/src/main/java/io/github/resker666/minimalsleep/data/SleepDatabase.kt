@@ -3,12 +3,15 @@ package io.github.resker666.minimalsleep.data
 import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "sessions")
 data class SleepSession(
@@ -30,8 +33,21 @@ data class SoundEvent(
     val durationSamples: Long,
     val label: String = "普通声音",
     val fileName: String,
-    val playbackAffected: Boolean
+    val playbackAffected: Boolean,
+    val modelVersion: String? = null,
+    val modelScore: Float? = null,
+    val modelSourceLabel: String? = null,
+    val userLabel: String? = null,
+    @ColumnInfo(defaultValue = "'LEGACY'") val classificationStatus: String = "PENDING"
 )
+
+fun SoundEvent.effectiveLabel(): String {
+    userLabel?.let { return it }
+    if (playbackAffected && classificationStatus == "READY" &&
+        label in setOf("人声/疑似梦话", "疑似鼾声", "疑似咳嗽")
+    ) return "未确定（播放干扰）"
+    return label
+}
 
 @Entity(tableName = "playback_intervals")
 data class PlaybackInterval(
@@ -65,6 +81,14 @@ interface SleepDao {
     fun sessions(): List<SleepSession>
     @Query("SELECT * FROM events WHERE sessionId = :id ORDER BY startSample")
     fun events(id: String): List<SoundEvent>
+    @Query("UPDATE events SET label = :label, modelVersion = :version, modelScore = :score, modelSourceLabel = :sourceLabel, classificationStatus = :status WHERE id = :id")
+    fun classifyEvent(id: String, label: String, version: String?, score: Float?, sourceLabel: String?, status: String)
+    @Query("UPDATE events SET userLabel = :label WHERE id = :id")
+    fun setUserLabel(id: String, label: String?)
+    @Query("UPDATE events SET classificationStatus = 'SKIPPED' WHERE sessionId = :sessionId AND classificationStatus = 'PENDING'")
+    fun markPendingSkipped(sessionId: String)
+    @Query("UPDATE events SET classificationStatus = 'SKIPPED' WHERE classificationStatus = 'PENDING' AND sessionId IN (SELECT id FROM sessions WHERE status != 'RECORDING')")
+    fun markStaleClassificationSkipped()
     @Query("SELECT * FROM playback_intervals WHERE sessionId = :id ORDER BY startSample")
     fun playbackIntervals(id: String): List<PlaybackInterval>
     @Query("SELECT * FROM recording_gaps WHERE sessionId = :id")
@@ -83,7 +107,7 @@ interface SleepDao {
 
 @Database(
     entities = [SleepSession::class, SoundEvent::class, PlaybackInterval::class, RecordingGap::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -91,13 +115,22 @@ abstract class SleepDatabase : RoomDatabase() {
 
     companion object {
         @Volatile private var instance: SleepDatabase? = null
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE events ADD COLUMN modelVersion TEXT")
+                db.execSQL("ALTER TABLE events ADD COLUMN modelScore REAL")
+                db.execSQL("ALTER TABLE events ADD COLUMN modelSourceLabel TEXT")
+                db.execSQL("ALTER TABLE events ADD COLUMN userLabel TEXT")
+                db.execSQL("ALTER TABLE events ADD COLUMN classificationStatus TEXT NOT NULL DEFAULT 'LEGACY'")
+            }
+        }
 
         fun get(context: Context): SleepDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 SleepDatabase::class.java,
                 "minimal-sleep.db"
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }

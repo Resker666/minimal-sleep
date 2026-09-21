@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.resker666.minimalsleep"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0-dev"
+        versionCode = 4
+        versionName = "0.3.1-dev"
     }
 
     buildTypes {
@@ -52,6 +52,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.5")
     kapt("androidx.room:room-compiler:2.8.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("com.google.ai.edge.litert:litert:1.4.2")
     testImplementation("junit:junit:4.13.2")
 }
 

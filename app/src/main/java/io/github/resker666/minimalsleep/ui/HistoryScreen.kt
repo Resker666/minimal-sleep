@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +34,8 @@ import io.github.resker666.minimalsleep.data.RecordingGap
 import io.github.resker666.minimalsleep.data.SleepDatabase
 import io.github.resker666.minimalsleep.data.SleepSession
 import io.github.resker666.minimalsleep.data.SoundEvent
+import io.github.resker666.minimalsleep.data.SessionSummary
+import io.github.resker666.minimalsleep.data.effectiveLabel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,6 +59,7 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
     var error by remember { mutableStateOf<String?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var playingId by remember { mutableStateOf<String?>(null) }
+    var editingId by remember { mutableStateOf<String?>(null) }
     val recording = RecordingUiState.status != "STOPPED"
 
     DisposableEffect(Unit) {
@@ -69,7 +73,10 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
         try {
             val data = withContext(Dispatchers.IO) {
                 val dao = SleepDatabase.get(context).dao()
-                if (!recording) dao.markStaleInterrupted(System.currentTimeMillis())
+                if (!recording) {
+                    dao.markStaleInterrupted(System.currentTimeMillis())
+                    dao.markStaleClassificationSkipped()
+                }
                 val nights = dao.sessions()
                 val selectedEvents = selectedId?.let(dao::events).orEmpty()
                 val selectedIntervals = selectedId?.let(dao::playbackIntervals).orEmpty()
@@ -103,6 +110,16 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                 }
                 refresh++
             } catch (failure: Exception) { error = "删除失败：${failure.message}" }
+        }
+    }
+
+    fun relabel(event: SoundEvent, label: String?) {
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) { SleepDatabase.get(context).dao().setUserLabel(event.id, label) }
+                editingId = null
+                refresh++
+            } catch (failure: Exception) { error = "修改标签失败：${failure.message}" }
         }
     }
 
@@ -153,6 +170,14 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
             if (session != null) {
                 Text(formatStart(session), style = MaterialTheme.typography.titleMedium)
                 Text("有效采集 ${session.durationSamples / 16_000} 秒；片段 ${events.size} 个，事件组 ${events.map { it.groupId }.distinct().size} 个")
+                Text("助眠声播放 ${SessionSummary.playbackSeconds(intervals, session.durationSamples)} 秒；与采集重叠时可能被麦克风录入")
+                if (events.isNotEmpty()) {
+                    Text("疑似类别事件组（无播放干扰 / 有播放干扰）", style = MaterialTheme.typography.titleMedium)
+                    SessionSummary.countByLabel(events).forEach { (label, counts) ->
+                        Text("$label：${counts.unaffectedGroups} / ${counts.affectedGroups}")
+                    }
+                    Text("同一事件组可能有不同片段标签；计数不代表整晚发生次数。", style = MaterialTheme.typography.bodySmall)
+                }
                 if (intervals.isNotEmpty()) {
                     Text("助眠声音播放区间", style = MaterialTheme.typography.titleMedium)
                     intervals.forEach { interval ->
@@ -164,7 +189,15 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                 events.forEach { event ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("${event.startSample / 16_000} 秒 · ${event.durationSamples / 16_000.0} 秒 · ${event.label}")
+                            Text("${event.startSample / 16_000} 秒 · ${event.durationSamples / 16_000.0} 秒 · ${event.effectiveLabel()}")
+                            if (event.userLabel != null) Text("手动标签；模型原结果：${event.label}", style = MaterialTheme.typography.bodySmall)
+                            else if (event.effectiveLabel() != event.label) Text("模型候选：${event.label}；受播放干扰，按未确定统计。", style = MaterialTheme.typography.bodySmall)
+                            when (event.classificationStatus) {
+                                "READY" -> Text("本地模型 ${event.modelVersion} · 原标签 ${event.modelSourceLabel ?: "无"} · 未校准分数 ${event.modelScore?.let { "%.2f".format(it) } ?: "无"}", style = MaterialTheme.typography.bodySmall)
+                                "PENDING" -> Text("分类排队中；稍后刷新", style = MaterialTheme.typography.bodySmall)
+                                "LEGACY" -> Text("旧版录音，无自动分类", style = MaterialTheme.typography.bodySmall)
+                                else -> Text("自动分类未完成（${event.classificationStatus}）；仍可回听", style = MaterialTheme.typography.bodySmall)
+                            }
                             if (event.playbackAffected) Text("播放声音期间，识别可能受影响", color = MaterialTheme.colorScheme.error)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = {
@@ -185,6 +218,13 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                                     }
                                 }, enabled = !recording) { Text(if (playingId == event.id) "停止" else "回听") }
                                 OutlinedButton(onClick = { deleteEvent(event) }, enabled = !recording) { Text("删除") }
+                                OutlinedButton(onClick = { editingId = if (editingId == event.id) null else event.id }, enabled = !recording) { Text("改标签") }
+                            }
+                            if (editingId == event.id) {
+                                listOf("疑似鼾声", "人声/疑似梦话", "疑似咳嗽", "其他环境声音", "未确定").forEach { option ->
+                                    TextButton(onClick = { relabel(event, option) }) { Text(option) }
+                                }
+                                TextButton(onClick = { relabel(event, null) }) { Text("恢复模型标签") }
                             }
                         }
                     }

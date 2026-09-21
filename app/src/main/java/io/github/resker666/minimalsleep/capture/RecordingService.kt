@@ -22,6 +22,7 @@ import io.github.resker666.minimalsleep.data.SleepDao
 import io.github.resker666.minimalsleep.data.SleepDatabase
 import io.github.resker666.minimalsleep.data.SleepSession
 import io.github.resker666.minimalsleep.data.SoundEvent
+import io.github.resker666.minimalsleep.detection.EventClassificationWorker
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
 import java.io.File
 import java.io.IOException
@@ -90,6 +91,7 @@ class RecordingService : Service() {
         var reason: String? = null
         var recorder: AudioRecord? = null
         var dao: SleepDao? = null
+        var classifierWorker: EventClassificationWorker? = null
         var inserted = false
         val fileStore = AudioFileStore(File(filesDir, "recordings"))
         val segmenter = EventSegmenter(sampleRate = SAMPLE_RATE)
@@ -113,7 +115,7 @@ class RecordingService : Service() {
         fun observePlayback(atSample: Long) {
             val state = PlaybackUiState
             val playing = state.isPlaying
-            val sound = state.sound.name
+            val sound = state.soundId
             val volume = state.appVolume
             val current = openInterval
             if (current != null && (!playing || current.soundId != sound || current.volume != volume)) closePlayback(atSample)
@@ -122,13 +124,14 @@ class RecordingService : Service() {
 
         fun saveSegment(segment: AudioSegment) {
             val name = fileStore.write(segment.samples, SAMPLE_RATE)
+            val eventId = UUID.randomUUID().toString()
             val end = segment.startSample + segment.samples.size
             val affected = closedIntervals.any { it.startSample < end && it.endSample > segment.startSample } ||
                 (openInterval?.startSample ?: Long.MAX_VALUE) < end
             try {
-                dao?.insertEvent(
+                checkNotNull(dao).insertEvent(
                     SoundEvent(
-                        id = UUID.randomUUID().toString(), sessionId = sessionId,
+                        id = eventId, sessionId = sessionId,
                         groupId = segment.groupId, startSample = segment.startSample,
                         durationSamples = segment.samples.size.toLong(), fileName = name,
                         playbackAffected = affected
@@ -138,10 +141,13 @@ class RecordingService : Service() {
                 fileStore.path(name).delete()
                 throw error
             }
+            classifierWorker?.submit(eventId, segment.samples)
         }
 
         try {
             dao = SleepDatabase.get(this).dao()
+            RecordingUiState.classifierStatus = "WAITING"
+            classifierWorker = EventClassificationWorker(this, dao)
             dao.markStaleInterrupted(System.currentTimeMillis())
             dao.insertSession(SleepSession(sessionId, System.currentTimeMillis(), TimeZone.getDefault().id))
             inserted = true
@@ -200,6 +206,8 @@ class RecordingService : Service() {
                     try { dao?.endSession(sessionId, System.currentTimeMillis(), sampleCursor, "INTERRUPTED", RecordingUiState.error) } catch (_: Exception) { }
                 }
             }
+            try { classifierWorker?.close() } catch (_: Exception) { }
+            if (inserted) try { dao?.markPendingSkipped(sessionId) } catch (_: Exception) { }
             RecordingUiState.status = "STOPPED"
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

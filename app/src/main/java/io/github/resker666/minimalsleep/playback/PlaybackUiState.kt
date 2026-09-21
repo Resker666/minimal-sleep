@@ -10,6 +10,12 @@ import androidx.compose.runtime.setValue
 object PlaybackUiState {
     var sound by mutableStateOf(SoundCatalog.HEAVY_RAIN)
         internal set
+    var soundId by mutableStateOf(SoundCatalog.HEAVY_RAIN.name)
+        internal set
+    var soundLabel by mutableStateOf(SoundCatalog.HEAVY_RAIN.label)
+        internal set
+    var pendingSoundId by mutableStateOf<String?>(null)
+        internal set
     var timerMinutes by mutableStateOf<Int?>(30)
         internal set
     var remainingMillis by mutableStateOf<Long?>(null)
