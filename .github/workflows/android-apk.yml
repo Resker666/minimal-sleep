@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -46,12 +46,37 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       - name: Test audio tools
-        run: python -m unittest discover -s tools -p 'test_*.py' -v
+        run: |
+          set +e
+          python -m unittest discover -s tools -p 'test_*.py' -v > python-tests.log 2>&1
+          result=$?
+          cat python-tests.log
+          if [ "$result" -ne 0 ]; then
+            {
+              echo '### Python audio tests failed'
+              echo '```text'
+              cat python-tests.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$result"
 
       - name: Lint, test, and build debug APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug
+          set +e
+          ./gradlew --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug > gradle-build.log 2>&1
+          result=$?
+          cat gradle-build.log
+          if [ "$result" -ne 0 ]; then
+            {
+              echo '### Android build failed (last 100 log lines)'
+              echo '```text'
+              tail -n 100 gradle-build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$result"
 
       - name: Verify and package APK
         run: |

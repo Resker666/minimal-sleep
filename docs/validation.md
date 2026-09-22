@@ -118,4 +118,4 @@
 - 本地以 PyYAML `BaseLoader` 解析 YAML，确认 `push`/`workflow_dispatch`、12 个步骤、测试与产物步骤存在，退出码 0。此静态检查不能替代 GitHub Actions 实际运行。
 - 本地 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0，10 个测试通过，无跳过。
 - 本地复用已有缓存执行 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，`BUILD SUCCESSFUL in 25s`，58 项 Gradle 任务中 57 项已是最新。此结果验证当前源码与任务组合；不验证云端首次下载或云端产物上传。
-- 云端运行及下载链接：待工作流推送后验证。云端调试签名与当前手机安装包的签名关系尚未核验，不能假设可覆盖安装；固定签名按用户要求留待以后。
+- 首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35672973981) 在 `Test audio tools` 步骤失败，未执行 Gradle 构建、无 Artifacts。用户随后合并到主干，主干运行 [#2](https://github.com/Resker666/minimal-sleep/actions/runs/35673131204) 同样在该步骤失败，仍无 APK。公开页面未登录时只显示步骤与退出码，未显示具体测试日志；已在开发分支追加失败日志到运行摘要，等待下一次运行定位。云端调试签名与当前手机安装包的签名关系尚未核验，不能假设可覆盖安装；固定签名按用户要求留待以后。
