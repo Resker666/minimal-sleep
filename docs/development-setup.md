@@ -2,7 +2,7 @@
 
 ## 新电脑首次构建
 
-Git 仓库含源码、五段原创生成 WAV、Gradle Wrapper 和依赖版本声明。它**不包含** JDK、Android SDK、Gradle 缓存、构建输出或 APK；这些体积较大、与平台有关，已由 `.gitignore` 排除。新开发者需要 JDK 17、Android SDK Platform API 36、Build Tools 35.0.0。运行 `./gradlew testDebugUnitTest lintDebug assembleDebug`（Windows 用 `./gradlew.bat`）时，Wrapper 和 Gradle 会首次下载 Gradle 与 Maven 依赖；速度取决于网络和已有缓存。Android App 安装后离线运行，无网络权限。
+Git 仓库含源码、三段原创生成 WAV、两段经作者 CC BY 4.0 授权的雨声剪辑、Gradle Wrapper 和依赖版本声明。它**不包含** JDK、Android SDK、Gradle 缓存、构建输出或 APK；这些体积较大、与平台有关，已由 `.gitignore` 排除。新开发者需要 JDK 17、Android SDK Platform API 36、Build Tools 35.0.0。运行 `./gradlew testDebugUnitTest lintDebug assembleDebug`（Windows 用 `./gradlew.bat`）时，Wrapper 和 Gradle 会首次下载 Gradle 与 Maven 依赖；速度取决于网络和已有缓存。Android App 安装后离线运行，无网络权限。
 
 ## 此 Windows 工作区快速复用
 

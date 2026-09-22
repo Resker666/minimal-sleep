@@ -1,6 +1,6 @@
 path,author,source,license,sha256
 app/src/main/res/raw/white_noise.wav,minimal-sleep contributors,tools/generate_noise.py,Apache-2.0,bbc0563b65641da92ef3143def417bb7aa22f3d3d383e1235af3496c7681e3e0
-app/src/main/res/raw/pink_noise.wav,minimal-sleep contributors,tools/generate_noise.py,Apache-2.0,9e4ef1b57cac1d76f9f0d5a0d3f738263eada02468544c91026396616e59d3a6
-app/src/main/res/raw/brown_noise.wav,minimal-sleep contributors,tools/generate_noise.py,Apache-2.0,c502e86a2daed768e5b692742c1e58d929fc86666833c7c23c7736b2a6a1b6ef
 app/src/main/res/raw/heavy_rain.wav,minimal-sleep contributors,tools/generate_nature.py,Apache-2.0,13104bdce5e7f7f4cfcada32f34a205f321d1247f53fe80be737c04aa06675fa
 app/src/main/res/raw/ocean_waves.wav,minimal-sleep contributors,tools/generate_nature.py,Apache-2.0,b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa
+app/src/main/assets/local-sounds/rain-01.ogg,Resker666,Resker666 original rain recording edited with tools/prepare_loop.py,CC-BY-4.0,b1cace1e59c4248e0e21686543e100aa611a9f8f3875c47757d67fddd90c9cc9
+app/src/main/assets/local-sounds/rain-04.ogg,Resker666,Resker666 original rain recording edited with tools/prepare_loop.py,CC-BY-4.0,888fc1071e05dee973487b93a35b6cbecfbfe61fd0342e53f115a945ede9a61e
