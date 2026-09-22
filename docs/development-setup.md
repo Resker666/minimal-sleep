@@ -35,4 +35,4 @@ $env:MINIMAL_SLEEP_MAVEN_PROXY = 'http://127.0.0.1:8765/m2'
 
 `.github/workflows/android-apk.yml` 在 `main`、`codex/**` 推送时自动运行，也定义了手动触发入口。GitHub 托管的 Ubuntu 运行器安装 JDK 17、Python 3.12、Android SDK API 36、Build Tools 35.0.0 与 FFmpeg；Gradle Wrapper 使用仓库指定的 8.13 版本，并从官方仓库下载依赖。新运行器不使用本机 `.tools/` 或 `MINIMAL_SLEEP_MAVEN_PROXY`。首次运行仍需下载工具和依赖，后续 Gradle 缓存可缩短构建时间。
 
-工作流依次运行 Python 音频工具测试、`lintDebug testDebugUnitTest assembleDebug`，只在成功后上传 APK 与 SHA-256 文件到该次运行的 **Artifacts**。下载的是 ZIP 形式的临时构建产物，不会自动创建 Release。云端使用运行器生成的调试签名，不配置或上传固定签名密钥；它与已有本机 APK 的签名不一致，不能覆盖安装。固定签名需要另行设计密钥保管和发布流程，见 [开发进度](progress.md)。
+工作流依次运行 Python 音频工具测试、`lintDebug testDebugUnitTest assembleDebug`，只在成功后上传 APK 与 SHA-256 文件到该次运行的 **Artifacts**。登录 GitHub 后可下载 ZIP 形式的临时构建产物；工作流不会自动创建 Release。云端使用运行器生成的调试签名，不配置或上传固定签名密钥；它与已有本机 APK 的签名不一致，不能覆盖安装。固定签名需要另行设计密钥保管和发布流程，见 [开发进度](progress.md)。
