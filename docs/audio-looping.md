@@ -24,7 +24,7 @@ python tools/prepare_loop.py --input 'source/待处理.mp3' --output 'deliverabl
 
 用户已允许裁剪并要求内置试听，但原作者再分发授权仍待提供。为便于这台手机试听，把 `rain-01.ogg`（大雨）和 `rain-04.ogg`（雨雷）复制到被 Git 忽略的 `app/src/debug/assets/local-sounds/`，原件和 v4 候选均未改动。应用仅在发现这些可选文件时显示“本机素材试听”选项；正常源码仓库没有该目录，release 构建也不含这两段音频。它们使用现有 Media3 播放器的循环和定时逻辑，录音时仍按播放区间标记干扰，不声称消除回声。
 
-私有调试 APK 为 `deliverables/minimal-sleep-v0.3.1-local-rain-debug.apk`。它只供本机安装和听感验证，**不得上传 GitHub、发送给他人或作为公开 Release 发布**。当前只做了短时真机播放，298 秒接缝、主观响度和整夜播放仍需试听。若要正式内置，先满足下方许可门槛，再按实际授权范围决定能否把素材放进仓库与公开 APK。
+私有调试 APK 为 `deliverables/minimal-sleep-v0.3.1-local-rain-debug.apk`。它只供本机安装和听感验证，**不得上传 GitHub、发送给他人或作为公开 Release 发布**。`rain-01.ogg` 已在真机播放跨过一次 298 秒边界，媒体会话维持 `PLAYING` 并从约 279 秒回到约 17 秒；这只能证明功能性循环。`rain-04.ogg` 的完整循环、两段的接缝听感、主观响度和整夜播放仍需试听。若要正式内置，先满足下方许可门槛，再按实际授权范围决定能否把素材放进仓库与公开 APK。
 
 ## 内置前的门槛
 
