@@ -22,3 +22,23 @@
 三段合成音生成后减去均值，将结尾一小段与开头反向片段做线性交叉淡化，保留峰值余量。脚本测试验证输出确定性、有限值、无数字削波、首尾采样值连续、海浪起伏与 WAV 格式。实际听感和循环接缝仍需真机主观确认，尤其是蓝牙设备。
 
 重建：在仓库根目录分别执行 `python tools/generate_noise.py` 和 `python tools/generate_nature.py`。默认写入 `app/src/main/res/raw/`；噪声脚本创建清单，自然声脚本打印 SHA-256，需手动更新清单。现有文件存在时会退出，以防误覆盖。
+
+## iOS 资源准备
+
+2026-09-22 的 Windows 准备轮次没有 Mac、Xcode 或 Swift。白噪声、合成大雨、合成海浪本来就是 48 kHz、16-bit、单声道 PCM WAV，因此仅逐字节复制到 `ios/MinimalSleep/Resources/`，没有重新生成、转码或改动 Android 原件。三份 iOS 副本的 SHA-256 分别与 Android 原件相同：
+
+| iOS 资源 | SHA-256 |
+|---|---|
+| `white_noise.wav` | `bbc0563b65641da92ef3143def417bb7aa22f3d3d383e1235af3496c7681e3e0` |
+| `heavy_rain.wav` | `13104bdce5e7f7f4cfcada32f34a205f321d1247f53fe80be737c04aa06675fa` |
+| `ocean_waves.wav` | `b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa` |
+
+两段雨声不能把 Ogg 直接声明为 AVAudioPlayer 可播放资源。新增的 `tools/prepare_ios_audio.py` 读取已经完成循环剪辑的 `app/src/main/assets/local-sounds/rain-01.ogg`、`rain-04.ogg`，使用 FFmpeg `pcm_s16le` 输出 PCM WAV；命令没有裁剪、交叉淡化、滤镜、增益、声道转换或重采样。脚本拒绝覆盖输出，并在成功后写入源/输出 SHA-256、完整命令、PCM 参数、作者 **Resker666**、许可证 **CC BY 4.0** 和修改说明到 `ios/MinimalSleep/Resources/audio-derivations.json`，同时更新 `assets-manifest.csv`。
+
+本机 PATH 与仓库 `.tools` 均未找到 FFmpeg 或其他 Ogg 解码器，因此本轮**没有实际生成** `rain-01.wav`、`rain-04.wav`，也没有输出哈希；不得把脚本存在解释为转码完成。今晚在 M4 上安装/确认 FFmpeg 后，从仓库根目录运行：
+
+```bash
+python3 tools/prepare_ios_audio.py
+```
+
+这一步只派生 iOS 文件，不覆盖两份 Android Ogg。脚本成功生成的雨声仍须保留 Resker666 / CC BY 4.0 署名，并在 iPhone 上跨实际循环边界试听；PCM 格式和哈希检查不能证明接缝听不出。
