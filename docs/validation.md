@@ -118,4 +118,7 @@
 - 本地以 PyYAML `BaseLoader` 解析 YAML，确认 `push`/`workflow_dispatch`、12 个步骤、测试与产物步骤存在，退出码 0。此静态检查不能替代 GitHub Actions 实际运行。
 - 本地 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0，10 个测试通过，无跳过。
 - 本地复用已有缓存执行 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，`BUILD SUCCESSFUL in 25s`，58 项 Gradle 任务中 57 项已是最新。此结果验证当前源码与任务组合；不验证云端首次下载或云端产物上传。
-- 首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35672973981) 在 `Test audio tools` 步骤失败，未执行 Gradle 构建、无 Artifacts。用户随后合并到主干，主干运行 [#2](https://github.com/Resker666/minimal-sleep/actions/runs/35673131204) 同样在该步骤失败，仍无 APK。公开页面未登录时只显示步骤与退出码，未显示具体测试日志；已在开发分支追加失败日志到运行摘要，等待下一次运行定位。云端调试签名与当前手机安装包的签名关系尚未核验，不能假设可覆盖安装；固定签名按用户要求留待以后。
+- 首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35672973981) 在 `Test audio tools` 失败，未执行 Gradle 构建、无 Artifacts；首次合并后的主干运行 [#2](https://github.com/Resker666/minimal-sleep/actions/runs/35673131204) 同样失败。用户提供日志：循环剪辑测试期望 4.5 秒，云端 FFprobe 给出 4.0 秒。诊断运行 [#4](https://github.com/Resker666/minimal-sleep/actions/runs/35673549816) 同时测得 FFprobe 与实际解码均为 4.0 秒，证明音频确实少了 0.5 秒，并非仅容器元数据差异。
+- `tools/prepare_loop.py` 将恰好等于过渡时长的 `acrossfade` 输入改为分别淡入、淡出再 `amix`，保留尾首交叉淡化与限幅。现有仓库内 Ogg 素材没有重新生成或覆盖；修复影响之后新制作的剪辑。本地 10 个 Python 测试通过，循环测试测得 FFprobe 与解码均为 4.500 秒。
+- 修复后的开发分支云端运行 [#5](https://github.com/Resker666/minimal-sleep/actions/runs/35673768789) 状态 **Success**，总耗时 4 分 45 秒，页面显示 1 个产物 `minimal-sleep-debug-5`（53.2 MB，GitHub 显示的**产物 ZIP** 摘要 `sha256:a371b2929ef0f53351eb3071e7c7a0861ff1c552b412b27673c5a38cc5ff3a65`）。运行已经过 Python 测试、Gradle Lint/单元测试/构建、APK 签名校验和上传步骤。未登录的访问无法下载 ZIP，因此本机尚未独立解压并核对其中 APK；已确认 GitHub 页面显示可下载产物。下载需要登录 GitHub 并有仓库读取权限。
+- 云端调试签名不能假设与当前手机 APK 一致；固定签名按用户要求留待以后。工作流只上传构建的 APK 与校验文件，没有上传手机录音。
