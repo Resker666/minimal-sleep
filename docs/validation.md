@@ -111,3 +111,11 @@
 - 用 Python `zipfile` 与 SHA-256 检查：debug APK 含 `assets/local-sounds/rain-01.ogg`、`rain-04.ogg` 及 `res/raw/heavy_rain.wav`、`ocean_waves.wav`、`white_noise.wav`；release 未签名 APK 含同两段 Ogg 和同三段 WAV（AAPT2 在 release 中重命名 WAV 路径，按文件哈希核对）。两种构建都没有粉红/棕噪声 WAV。两段 Ogg 哈希为 `B1CACE1E59C4248E0E21686543E100AA611A9F8F3875C47757D67FDDD90C9CC9`、`888FC1071E05DEE973487B93A35B6CBECFBFE61FD0342E53F115A945EDE9A61E`。
 - 新调试 APK `deliverables/minimal-sleep-v0.4.0-dev-debug.apk`，55,903,025 字节，SHA-256 `ED10F0E43F7D954E231A1718769CFEEE05D5785DBA32B9DCCC04D9FD2F488462`；从构建输出复制时拒绝覆盖同名已有文件，并核对复制前后哈希。`apksigner verify --verbose` 退出码 0，v2 签名有效。`aapt2 dump badging` 为 versionCode 5、versionName `0.4.0-dev`、minSdk 26、targetSdk 35；`aapt2 dump permissions` 未列 `INTERNET`。
 - `adb install -r` 退出码 0，手机 `23127PN0CC` 返回 `Success`；已安装 `base.apk` SHA-256 与本机一致。真机“今晚”页依次显示“大雨剪辑”“雨雷剪辑”“合成大雨”“合成海浪”“白噪声”，没有粉红/棕噪声；默认选中大雨剪辑。`dumpsys media_session` 显示大雨剪辑、雨雷剪辑、白噪声先后为 `PLAYING`，切换后最终白噪声为 `PAUSED`。两段剪辑媒体元数据署名 `Resker666 · CC BY 4.0`。这是播放和顺序短测，当前版还未做人耳循环接缝及整夜验收。测试没有复制或上传手机夜间录音，APK 未上传或发布。
+
+## 2026-09-22 GitHub Actions 构建流水线
+
+- 新增 `.github/workflows/android-apk.yml`：`main` 与 `codex/**` 推送触发，安装 JDK 17、Python 3.12、Android SDK API 36、Build Tools 35.0.0 和 FFmpeg；运行 Python 音频工具测试及 Gradle `lintDebug testDebugUnitTest assembleDebug`。仅成功后校验 APK 签名并上传调试 APK 与 SHA-256 文件，保留 14 天。无录音上传步骤、无固定签名密钥或发布 Release 的步骤。
+- 本地以 PyYAML `BaseLoader` 解析 YAML，确认 `push`/`workflow_dispatch`、12 个步骤、测试与产物步骤存在，退出码 0。此静态检查不能替代 GitHub Actions 实际运行。
+- 本地 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0，10 个测试通过，无跳过。
+- 本地复用已有缓存执行 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，`BUILD SUCCESSFUL in 25s`，58 项 Gradle 任务中 57 项已是最新。此结果验证当前源码与任务组合；不验证云端首次下载或云端产物上传。
+- 云端运行及下载链接：待工作流推送后验证。云端调试签名与当前手机安装包的签名关系尚未核验，不能假设可覆盖安装；固定签名按用户要求留待以后。

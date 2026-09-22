@@ -32,6 +32,8 @@
 
 非 Windows 使用 `./gradlew`。首次构建需要访问 Google Maven、Maven Central 与 Gradle 官方分发站；App 运行时不联网。构建生成的调试 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。APK 不纳入 Git；已核验的自然声试用包可从 [v0.2.0-preview.1 预发布页](https://github.com/Resker666/minimal-sleep/releases/tag/v0.2.0-preview.1) 下载。它使用本机调试签名，尚非正式发布版。Android 8.0 及以上可尝试安装；MIUI/HyperOS 可能需要从手机文件管理器手动确认安装。
 
+推送到 `main` 或 `codex/**` 分支时，[Android APK 工作流](https://github.com/Resker666/minimal-sleep/actions/workflows/android-apk.yml) 会在 GitHub Actions 安装 JDK 17、Android SDK API 36 与 Build Tools 35，运行 Python 音频工具测试、Android Lint 与 JVM 单元测试，成功后构建调试 APK。在成功运行页面的 **Artifacts** 中下载 `minimal-sleep-debug-<运行编号>` ZIP，解压得到 `minimal-sleep-debug.apk` 和 SHA-256 校验文件；产物保留 14 天。它是测试产物，不是 GitHub Release。云端每次使用临时调试签名，不能直接覆盖安装由本机或其他运行签名的 App；卸载旧 App 会删除其私有录音和导入音频，因此有数据时不要为试装云端包直接卸载。固定签名密钥与安全分发流程列为后续事项。
+
 夜间试用时将手机置于稳定位置、麦克风无遮挡，先做仅播放、仅记录和同时运行的短测，再做锁屏与整夜测试。播放器可能受到耳机断开、其他应用音频焦点和系统后台限制影响，请按 [真机验证步骤](docs/validation.md) 记录结果。
 
 源码许可证为 [Apache-2.0](LICENSE)。内置音频、模型与依赖来源见 [资源说明](docs/assets.md)、[模型说明](docs/model-assets.md)、[资源清单](assets-manifest.csv) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。录音不纳入 Git；当前没有正式版发布。
