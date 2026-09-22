@@ -1,6 +1,6 @@
 # 验证记录
 
-日期：2026-09-20。所有结果均需注明命令、退出码和证据路径；未执行的项目不能记为通过。
+初建：2026-09-20；更新：2026-09-22。所有结果均需注明命令、退出码和证据路径；未执行的项目不能记为通过。
 
 ## 环境初检
 
@@ -65,7 +65,7 @@
 
 ### 安装后短测顺序
 
-1. 打开 App；只播放白、粉红、棕三种声音各 1 分钟，检查循环点、音量、通知暂停、锁屏继续、耳机拔出暂停与其他应用抢占焦点。记录设备音量、路由与异常。
+1. 打开当前 App；分别播放两段雨声剪辑、白噪声及合成声音，检查循环点、音量、通知暂停、锁屏继续、耳机拔出暂停与其他应用抢占焦点。记录设备音量、路由与异常。旧版粉红、棕噪声现已移除。
 2. 设置 15 分钟计时，再做 30/60/90 分钟和整晚的短时钟模拟或实际等待；检查旋转、离开页面与手动暂停不会意外重置定时。单元测试只验证计算，不能替代真实服务时序。
 3. 拒绝麦克风权限：确认仅播放仍可用。授权后做 2–5 分钟仅录音，制造几次可识别的普通声音，结束后在“记录”页回听原音、删除单条与整夜记录。请勿使用私人录音作为提交样本。
 4. 同时播放白噪声和录音，检查时间轴有播放区间、重叠片段有干扰标记；记录白噪声音量与摆位。回听时先停止录音。
@@ -84,3 +84,38 @@
 - 最终 r4 安装后，ADB 快速点击“大雨→海浪→大雨”，`dumpsys media_session` 为大雨 `PLAYING`；再次选海浪并紧接媒体暂停按键，返回海浪 `PAUSED`。这是快速操作回归，不能保证覆盖所有 150 ms 时序排列。随后确认无录音前台服务且播放器为 `PAUSED`。
 - `adb shell pm path io.github.resker666.minimalsleep` 找到已安装 `base.apk`；`adb shell sha256sum` 得到 `684F16EA29479BE4BAE7BE6350A7C6F7CABA7254C0E05F3D1A8CB29B23A71FC1`，与 r4 本地 APK SHA-256 完全一致，确认手机装的是最终修订包。
 - 未完成验证：真实鼾声/人声/咳嗽分开的合法样本、误报/漏报、导入 MP3/M4A 等其他格式、定时实际到期/10 秒淡出、循环接缝、耳机拔出和焦点、权限拒绝、空间不足、来电/蓝牙、受控 8 小时整夜及不充电耗电。请勿从本节推断睡眠质量或呼吸暂停。
+
+## 2026-09-21 用户素材本地循环试听准备
+
+- 开始前 `git status --short --branch` 为干净的 `codex/continue-m3-m5`；本轮建立 `codex/loop-audio-previews`。`source/` 有 7 段 MP3，合计 301,860,865 字节（287.9 MiB）：两段 230.95 秒/508.82 秒，五段约 3,601–3,676 秒。`git ls-files --stage source` 为空，`.gitignore` 的 `*.mp3` 排除原件。没有发现这 7 段的许可文件或文件内版权标签；用户表示稍后提供授权信息，故没有加入源码、公开 APK 或 Release。目录中没有海浪素材。
+- 新增 `tools/prepare_loop.py`：在原件不变、目标不存在的前提下，选取时段、尾首交叉淡化、限制 PCM 峰值并输出 Ogg Vorbis。先写 3 个测试，首次 `python -m unittest tools.test_prepare_loop -v` 退出码 1，因脚本尚不存在而有 2 个预期失败；实现后通过。增加响亮交叉区测试时先实际看到解码峰值 `1.4183` 导致失败；修复滤镜内部采样格式与限幅后通过。增加可选降低增益测试时先因未知 `--gain` 参数失败，实现后通过。增加目标文件竞态测试时先因缺少排他发布函数而失败，实现后通过，避免其他进程新建的文件被误删。最终 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0：10 个测试、0 失败，其中 6 个为新增剪辑测试。测试覆盖输出时长/接缝、拒绝覆盖、越界拒绝、交叉区削波、降低增益与发布竞态。
+- 五段长雨声均从第 600 秒选取 300 秒、尾首交叉淡化 2 秒。最终仅以 `deliverables/audio-previews-v4/` 为候选；`manifest.json` 记录每段输入/输出 SHA-256、处理参数和 `permissionToRedistribute=UNVERIFIED`。五个 v4 Ogg 经 `ffprobe` 均为 298.000 秒、44.1 kHz 双声道 Vorbis，大小分别为 4,097,198、4,367,408、4,417,870、4,198,196、4,326,801 字节。全部经 FFmpeg `-xerror` 完整解码；各声道峰值最大 0.843，假定以 0.707/声道混合为单声道的峰值最大 0.930，首末单采样差各声道最大 0.0188。数值不能证明循环接缝听不出。早期 v1–v3 预览留在忽略目录中，仅 v4 为候选。
+- 两段短 MP3 只复制为 `cicada-original.mp3` 与 `storm-original.mp3` 供试听，原文件未裁剪。蝉鸣音频以 0.1 秒窗、RMS 0.001 阈值检测，开头约 0.4 秒与结尾约 0.3 秒较安静，直接循环可能有音量低谷；雷雨声未显示同样的阈值下静音窗。仍需耳听验收。
+- 用户允许短暂使用手机后，ADB 设备为 `23127PN0CC`。7 段 v4 试听文件已推送至 `/sdcard/Download/minimal-sleep-loop-previews-v4/`，逐一以 `adb shell sha256sum` 对照本机 `Get-FileHash`，7/7 一致。没有从手机复制录音。
+- 现有 versionCode 4 App 经系统文件选择器导入 `rain-01.ogg`，界面显示“正在使用：rain-01.ogg”；`dumpsys media_session` 显示该本地文件 `PLAYING`，位置从约 34.6 秒推进至 40.3 秒。随后暂停，切回内置大雨并在 App 中删除这次导入的副本；UI 无 `rain-01.ogg` 条目，私有导入目录无同大小文件。这个短测只证明该手机能导入与播放 Ogg，未等到 298 秒循环点，也未证明其他四段听感。手机“下载”中的试听文件保留供用户逐段比较。本轮没有构建新 APK。
+
+## 2026-09-22 私有内置雨声试听包
+
+- 用户允许裁剪；原作者、原始链接和可公开再分发授权仍待提供。因此两段 v4 Ogg 仅复制到 Git 忽略的 `app/src/debug/assets/local-sounds/`：`rain-01.ogg` SHA-256 `B1CACE1E59C4248E0E21686543E100AA611A9F8F3875C47757D67FDDD90C9CC9`，`rain-04.ogg` SHA-256 `888FC1071E05DEE973487B93A35B6CBECFBFE61FD0342E53F115A945EDE9A61E`，与 v4 候选一致。`git check-ignore -v` 对两者均指向 `.gitignore` 的 debug 目录规则；原始 MP3 和候选文件未覆盖。
+- 新增可选资源目录测试，先运行 `:app:testDebugUnitTest --tests '*LocalPreviewSoundsTest'`，退出码 1，`.tools/local-preview-red.log` 中 `Unresolved reference 'LocalPreviewSounds'`；实现后同命令退出码 0，`.tools/local-preview-green.log`。测试覆盖只显示实际打包的候选、稳定顺序及空目录。完整 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，`.tools/local-preview-full-build.log` 显示 `BUILD SUCCESSFUL in 46s`；JUnit XML 汇总 16 个测试、0 失败、0 错误。
+- `assembleRelease` 退出码 0，`.tools/local-preview-release-check.log` 显示 `BUILD SUCCESSFUL in 1m 43s`。用 Python `zipfile` 检查：debug APK 的 `assets/local-sounds/` 恰有 `rain-01.ogg` 和 `rain-04.ogg`，`app-release-unsigned.apk` 在同路径下没有条目。此 release APK 未签名，不用于安装或发布；目录隔离只证明这次构建未带入两段外来录音。
+- 私有 APK `deliverables/minimal-sleep-v0.3.1-local-rain-debug.apk`，59,743,130 字节，SHA-256 `0EA1DB88FCE7829C6F5DD66B500D4E555CADD71309186A65D89A456386760244`；由 `app/build/outputs/apk/debug/app-debug.apk` 不覆盖已有交付文件地复制，复制前后哈希一致。`apksigner verify --verbose` 退出码 0，v2 签名有效。`aapt2 dump permissions` 只列前台服务、麦克风、WAKE_LOCK 与应用内部动态接收器权限，没有 `INTERNET`。
+- `adb install -r deliverables/minimal-sleep-v0.3.1-local-rain-debug.apk` 退出码 0，返回 `Success`。手机 `23127PN0CC` 的 `pm path` 找到安装包，`sha256sum` 为 `0ea1db88fce7829c6f5dd66b500d4e555cadd71309186a65d89a456386760244`，与本机一致。第一次启动时屏幕处于锁定状态，未绕过手机密码；2026-09-22 手机已解锁后继续。
+- 真机“今晚”页确有“大雨素材试听”“雨雷素材试听”两项，同时原有五种合成声音仍显示。选择前者并点播放后，`dumpsys media_session` 为 `PLAYING`，标题“大雨素材试听”，位置由 0 前进至 11,812 ms；切换后标题变为“雨雷素材试听”，`PLAYING` 位置 2,795 ms，媒体暂停键随后使状态成为 `PAUSED`。这验证该设备能解码两段可选资源并短时播放、切换、暂停；未获得用户对听感的确认，也未等到 298 秒循环点。测试结束已暂停。未复制或上传手机录音，未上传本地素材或 APK。
+- 随后选“大雨素材试听”并用 `adb shell cmd media_session dispatch play` 启动一次完整循环，连续以 `adb shell dumpsys media_session` 读取状态：同一标题的 `PLAYING` 位置依次为 59,962、158,357、221,511、279,155 ms；再取样为 17,231 ms 且仍是 `PLAYING`，与 298,000 ms 素材跨过边界相符。最后 `dispatch pause` 后状态为 `PAUSED`、位置 24,896 ms。此检查证明这台手机上大雨素材完成一次功能性循环，**不证明接缝无声学突变**；雨雷素材未做全长循环测试。
+
+## 2026-09-22 内置剪辑与声音排序更新
+
+- 用户明确表示 `rain-01.ogg`、`rain-04.ogg` 对应的原始音轨均由本人录制，授权以 **Resker666** 署名按 CC BY 4.0 修改并公开分发。来源和权利以作者本人声明记录；原始 MP3 名含 B 站视频编号，这些编号本身不作许可依据。原始 MP3、其余五段候选和手机夜间录音都没有纳入仓库。两段 Ogg 从原先忽略的 debug 资源复制到 `app/src/main/assets/local-sounds/`，与 v4 预览 SHA-256 逐一一致。
+- 先写 `SoundCatalogSelectionTest` 后执行 `:app:testDebugUnitTest --tests '*SoundCatalogSelectionTest'`，退出码 1，`.tools/sound-selection-red.log` 显示保留声音列表断言失败。移除粉红/棕枚举与 WAV、把两段剪辑置顶并改为默认选择后，`--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug assembleRelease` 退出码 0，`.tools/v040-full-build.log` 显示 `BUILD SUCCESSFUL in 1m 15s`；JUnit XML 汇总 17 个测试、0 失败、0 错误。`python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0，10 个测试通过。
+- 用 Python `zipfile` 与 SHA-256 检查：debug APK 含 `assets/local-sounds/rain-01.ogg`、`rain-04.ogg` 及 `res/raw/heavy_rain.wav`、`ocean_waves.wav`、`white_noise.wav`；release 未签名 APK 含同两段 Ogg 和同三段 WAV（AAPT2 在 release 中重命名 WAV 路径，按文件哈希核对）。两种构建都没有粉红/棕噪声 WAV。两段 Ogg 哈希为 `B1CACE1E59C4248E0E21686543E100AA611A9F8F3875C47757D67FDDD90C9CC9`、`888FC1071E05DEE973487B93A35B6CBECFBFE61FD0342E53F115A945EDE9A61E`。
+- 新调试 APK `deliverables/minimal-sleep-v0.4.0-dev-debug.apk`，55,903,025 字节，SHA-256 `ED10F0E43F7D954E231A1718769CFEEE05D5785DBA32B9DCCC04D9FD2F488462`；从构建输出复制时拒绝覆盖同名已有文件，并核对复制前后哈希。`apksigner verify --verbose` 退出码 0，v2 签名有效。`aapt2 dump badging` 为 versionCode 5、versionName `0.4.0-dev`、minSdk 26、targetSdk 35；`aapt2 dump permissions` 未列 `INTERNET`。
+- `adb install -r` 退出码 0，手机 `23127PN0CC` 返回 `Success`；已安装 `base.apk` SHA-256 与本机一致。真机“今晚”页依次显示“大雨剪辑”“雨雷剪辑”“合成大雨”“合成海浪”“白噪声”，没有粉红/棕噪声；默认选中大雨剪辑。`dumpsys media_session` 显示大雨剪辑、雨雷剪辑、白噪声先后为 `PLAYING`，切换后最终白噪声为 `PAUSED`。两段剪辑媒体元数据署名 `Resker666 · CC BY 4.0`。这是播放和顺序短测，当前版还未做人耳循环接缝及整夜验收。测试没有复制或上传手机夜间录音，APK 未上传或发布。
+
+## 2026-09-22 GitHub Actions 构建流水线
+
+- 新增 `.github/workflows/android-apk.yml`：`main` 与 `codex/**` 推送触发，安装 JDK 17、Python 3.12、Android SDK API 36、Build Tools 35.0.0 和 FFmpeg；运行 Python 音频工具测试及 Gradle `lintDebug testDebugUnitTest assembleDebug`。仅成功后校验 APK 签名并上传调试 APK 与 SHA-256 文件，保留 14 天。无录音上传步骤、无固定签名密钥或发布 Release 的步骤。
+- 本地以 PyYAML `BaseLoader` 解析 YAML，确认 `push`/`workflow_dispatch`、12 个步骤、测试与产物步骤存在，退出码 0。此静态检查不能替代 GitHub Actions 实际运行。
+- 本地 `python -m unittest discover -s tools -p 'test_*.py' -v` 退出码 0，10 个测试通过，无跳过。
+- 本地复用已有缓存执行 `--offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug` 退出码 0，`BUILD SUCCESSFUL in 25s`，58 项 Gradle 任务中 57 项已是最新。此结果验证当前源码与任务组合；不验证云端首次下载或云端产物上传。
+- 云端运行及下载链接：待工作流推送后验证。云端调试签名与当前手机安装包的签名关系尚未核验，不能假设可覆盖安装；固定签名按用户要求留待以后。
