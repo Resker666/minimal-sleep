@@ -53,9 +53,10 @@ class SoundPlaybackService : MediaSessionService() {
     @UnstableApi
     override fun onCreate() {
         super.onCreate()
+        val initialPreview = BundledRainSounds.available(this).firstOrNull()
         PlaybackUiState.sound = SoundCatalog.HEAVY_RAIN
-        PlaybackUiState.soundId = SoundCatalog.HEAVY_RAIN.name
-        PlaybackUiState.soundLabel = SoundCatalog.HEAVY_RAIN.label
+        PlaybackUiState.soundId = initialPreview?.id ?: SoundCatalog.HEAVY_RAIN.name
+        PlaybackUiState.soundLabel = initialPreview?.label ?: SoundCatalog.HEAVY_RAIN.label
         PlaybackUiState.pendingSoundId = null
         PlaybackUiState.timerMinutes = 30
         PlaybackUiState.remainingMillis = null
@@ -72,7 +73,7 @@ class SoundPlaybackService : MediaSessionService() {
             )
             repeatMode = Player.REPEAT_MODE_ONE
             volume = baseVolume
-            setMediaItem(itemFor(SoundCatalog.HEAVY_RAIN))
+            setMediaItem(initialPreview?.let { itemFor(it) } ?: itemFor(SoundCatalog.HEAVY_RAIN))
             prepare()
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -125,6 +126,12 @@ class SoundPlaybackService : MediaSessionService() {
             .build()
     }
 
+    private fun itemFor(preview: BundledRainSound): MediaItem = MediaItem.Builder()
+        .setMediaId(preview.id)
+        .setUri(Uri.parse(BundledRainSounds.assetUri(preview)))
+        .setMediaMetadata(MediaMetadata.Builder().setTitle(preview.label).setArtist("Resker666 · CC BY 4.0").build())
+        .build()
+
     private fun updateVolume(factor: Float = 1f) {
         applyingVolume = true
         player.volume = baseVolume * timer.gain() * factor
@@ -142,13 +149,15 @@ class SoundPlaybackService : MediaSessionService() {
             return true
         }
         val builtIn = SoundCatalog.entries.firstOrNull { it.name == id }
-        val imported = if (builtIn == null) ImportedSoundStore(this).list().firstOrNull { it.id == id } else null
+        val preview = if (builtIn == null) BundledRainSounds.available(this).firstOrNull { it.id == id } else null
+        val imported = if (builtIn == null && preview == null) ImportedSoundStore(this).list().firstOrNull { it.id == id } else null
         val item = when {
             builtIn != null -> itemFor(builtIn)
+            preview != null -> itemFor(preview)
             imported != null -> itemFor(imported)
             else -> null
         } ?: return false
-        val label = builtIn?.label ?: imported!!.label
+        val label = builtIn?.label ?: preview?.label ?: imported!!.label
         val generation = ++switchGeneration
         pendingSoundId = id
         PlaybackUiState.pendingSoundId = id

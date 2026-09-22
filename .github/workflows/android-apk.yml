@@ -1,0 +1,79 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android API 36 and Build Tools 35
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;35.0.0'
+
+      - name: Cache Gradle dependencies
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install FFmpeg for audio tool tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Test audio tools
+        run: python -m unittest discover -s tools -p 'test_*.py' -v
+
+      - name: Lint, test, and build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug
+
+      - name: Verify and package APK
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/minimal-sleep-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/minimal-sleep-debug.apk
+          cd dist
+          sha256sum minimal-sleep-debug.apk > minimal-sleep-debug.apk.sha256
+
+      - name: Upload downloadable APK
+        id: apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: minimal-sleep-debug-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Show download link
+        run: |
+          echo "[Download debug APK artifact](${{ steps.apk.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo 'The ZIP contains minimal-sleep-debug.apk and its SHA-256 file.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This APK uses the runner debug key and cannot update an app signed by another key.' >> "$GITHUB_STEP_SUMMARY"

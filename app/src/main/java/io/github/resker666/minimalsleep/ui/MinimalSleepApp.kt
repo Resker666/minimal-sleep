@@ -44,6 +44,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
 import io.github.resker666.minimalsleep.playback.ImportedSoundStore
+import io.github.resker666.minimalsleep.playback.BundledRainSounds
 import io.github.resker666.minimalsleep.playback.SoundCatalog
 import io.github.resker666.minimalsleep.playback.SoundPlaybackService
 import kotlin.math.ceil
@@ -105,6 +106,7 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val importedStore = remember(context) { ImportedSoundStore(context) }
+    val bundledRains = remember(context) { BundledRainSounds.available(context) }
     var imported by remember { mutableStateOf(importedStore.list()) }
     var importError by remember { mutableStateOf<String?>(null) }
     var importing by remember { mutableStateOf(false) }
@@ -134,6 +136,27 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("选择声音", style = MaterialTheme.typography.titleMedium)
+                if (bundledRains.isNotEmpty()) {
+                    Text("雨声剪辑", style = MaterialTheme.typography.titleMedium)
+                    Text("录制：Resker666 · CC BY 4.0 · 已剪辑\ncreativecommons.org/licenses/by/4.0/", style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        bundledRains.forEach { sound ->
+                            FilterChip(
+                                selected = state.soundId == sound.id,
+                                onClick = {
+                                    requestedSoundId = sound.id
+                                    controller?.sendCustomCommand(
+                                        SessionCommand(SoundPlaybackService.ACTION_SOUND, Bundle.EMPTY),
+                                        Bundle().apply { putString(SoundPlaybackService.KEY_SOUND, sound.id) }
+                                    )
+                                },
+                                enabled = controller != null,
+                                label = { Text(sound.label) }
+                            )
+                        }
+                    }
+                }
+                Text("合成声音", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(SoundCatalog.HEAVY_RAIN, SoundCatalog.OCEAN_WAVES).forEach { sound ->
                         FilterChip(
@@ -151,7 +174,7 @@ private fun TonightScreen(controller: MediaController?, error: String?, modifier
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(SoundCatalog.WHITE, SoundCatalog.PINK, SoundCatalog.BROWN).forEach { sound ->
+                    listOf(SoundCatalog.WHITE).forEach { sound ->
                         FilterChip(
                             selected = state.soundId == sound.name,
                             onClick = {
