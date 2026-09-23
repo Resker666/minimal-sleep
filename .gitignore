@@ -21,6 +21,8 @@ recordings/
 *.apk
 DerivedData/
 *.xcuserdata/
+xcuserdata/
+*.xcuserstate
 *.mobileprovision
 *.p12
 *.cer

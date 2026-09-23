@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -6,13 +5,10 @@ import UniformTypeIdentifiers
 @MainActor
 struct HomeView: View {
     @ObservedObject var coordinator: AudioCoordinator
-    let importedSounds: [ImportedSound]
-    let onImport: ((URL) -> Void)?
-    let onDelete: ((UUID) -> Void)?
+    @ObservedObject var importedLibrary: ImportedSoundLibrary
 
     @State private var showsAbout = false
     @State private var showsImporter = false
-    private let displayTimer = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationStack {
@@ -45,13 +41,14 @@ struct HomeView: View {
             allowedContentTypes: [.audio],
             allowsMultipleSelection: false
         ) { result in
-            if case let .success(urls) = result, let url = urls.first {
-                onImport?(url)
+            switch result {
+            case let .success(urls):
+                if let url = urls.first {
+                    importedLibrary.importSound(from: url)
+                }
+            case let .failure(error):
+                importedLibrary.reportFileImporterError(error)
             }
-        }
-        .onReceive(displayTimer) { _ in
-            // Display refresh only. The deadline is monotonic and never counts UI ticks.
-            coordinator.refreshTimer()
         }
     }
 
@@ -90,17 +87,29 @@ struct HomeView: View {
 
     private var playbackSection: some View {
         Section("播放") {
-            Button {
-                coordinator.isPlaying ? coordinator.pause() : coordinator.play()
-            } label: {
-                Label(
-                    coordinator.isPlaying ? "暂停" : "播放",
-                    systemImage: coordinator.isPlaying ? "pause.fill" : "play.fill"
-                )
-                .frame(maxWidth: .infinity, minHeight: 44)
+            HStack(spacing: 12) {
+                Button {
+                    coordinator.isPlaying ? coordinator.pause() : coordinator.play()
+                } label: {
+                    Label(
+                        coordinator.isPlaying ? "暂停" : "播放",
+                        systemImage: coordinator.isPlaying ? "pause.fill" : "play.fill"
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel(coordinator.isPlaying ? "暂停助眠声音" : "播放助眠声音")
+
+                Button {
+                    coordinator.stop()
+                } label: {
+                    Label("停止", systemImage: "stop.fill")
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .disabled(coordinator.playbackState == .stopped)
+                .accessibilityLabel("停止助眠声音并清除倒计时")
             }
-            .buttonStyle(.borderedProminent)
-            .accessibilityLabel(coordinator.isPlaying ? "暂停助眠声音" : "播放助眠声音")
 
             HStack {
                 Image(systemName: "speaker.fill")
@@ -151,22 +160,50 @@ struct HomeView: View {
             } label: {
                 Label("导入音频", systemImage: "square.and.arrow.down")
             }
-            .disabled(onImport == nil)
+            .disabled(!importedLibrary.isAvailable || importedLibrary.isBusy)
             .accessibilityLabel("从文件导入音频")
 
-            ForEach(importedSounds) { sound in
+            ForEach(importedLibrary.sounds) { sound in
                 HStack {
-                    Text(sound.displayName)
-                        .lineLimit(2)
+                    Button {
+                        if let url = importedLibrary.fileURL(for: sound) {
+                            coordinator.selectImportedSound(sound, fileURL: url)
+                        }
+                    } label: {
+                        HStack {
+                            Text(sound.displayName)
+                                .lineLimit(2)
+                                .foregroundStyle(.primary)
+                            if coordinator.currentImportedSoundID == sound.id {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("选择 \(sound.displayName)")
+
                     Spacer()
                     Button(role: .destructive) {
-                        onDelete?(sound.id)
+                        importedLibrary.delete(id: sound.id)
                     } label: {
                         Image(systemName: "trash")
                     }
-                    .disabled(onDelete == nil)
+                    .disabled(importedLibrary.isBusy)
                     .accessibilityLabel("删除 \(sound.displayName)")
                 }
+            }
+
+            if importedLibrary.isBusy {
+                ProgressView()
+                    .accessibilityLabel("正在处理音频")
+            }
+
+            if let message = importedLibrary.errorMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
             }
         }
     }

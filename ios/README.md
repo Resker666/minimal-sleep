@@ -1,15 +1,34 @@
-# iOS source handoff
+# iOS app
 
-This directory currently contains Swift sources, XCTest files, and prepared resources only. It intentionally has no `.xcodeproj` or `.xcworkspace`; the Windows preparation pass did not run or claim an Apple build.
+Open `MinimalSleep.xcodeproj` with Xcode. The shared scheme is `MinimalSleep`, the deployment target is iOS 17.0, and the bundle identifier is `io.github.resker666.minimalsleep`.
 
-## Continue on the M4 Mac
+The playback MVP is wired end to end:
 
-1. Start with task 0 in `docs/minimal-sleep-ios-codex-plan.md`. Record the actual macOS, Xcode, SDK, simulator, and connected-device results in `docs/ios-development.md`. Do not repeat the Windows source preparation.
-2. Confirm `ffmpeg` is available, then run `python3 tools/prepare_ios_audio.py`. It reads the two existing Android Ogg files and creates `rain-01.wav`, `rain-04.wav`, and `audio-derivations.json` in `ios/MinimalSleep/Resources/`; it does not overwrite the Ogg files or redo their loop edit.
-3. In Xcode, create a temporary **iOS App** project named `MinimalSleep` with SwiftUI, Swift, and XCTest. Do not let Xcode create a Git repository. Move only `MinimalSleep.xcodeproj` to `ios/`, open it, remove its generated source references, and add the existing `ios/MinimalSleep/` and `ios/MinimalSleepTests/` files with the correct target membership.
-4. Set the exact Bundle Identifier to `io.github.resker666.minimalsleep` and the deployment target to iOS 17. Add the five WAV files from `ios/MinimalSleep/Resources/` to **Copy Bundle Resources**.
-5. Under **Signing & Capabilities**, select the user's real Personal Team locally. Add only **Background Modes > Audio, AirPlay, and Picture in Picture**. Do not add a microphone usage description, recording capability, HealthKit, networking entitlement, or a fabricated Development Team.
-6. Implement the locations marked `TODO（需 Mac 编译）`: one AVFoundation playback engine, MediaPlayer remote commands/metadata, audio validation, the background-safe deadline scheduler, and UI wiring for the imported-sound actor. Do not treat the current protocol-only adapters as working playback.
-7. Add the Swift files to the app/test targets and run the `SleepTimerPolicy`, `ImportedSoundStore`, `SoundCatalog`, and `AudioCoordinator` XCTest suites before simulator/device work. Record exact commands and exit codes in `docs/ios-validation.md`.
+- one `AVAudioPlayer` and `.playback` audio session;
+- five bundled offline sounds, including two Resker666 / CC BY 4.0 rain recordings;
+- 15/30/60/90 minute or all-night sessions with a final 10-second fade;
+- background audio, lock-screen metadata, and play/pause commands;
+- interruption and headphone-removal pause without automatic resume;
+- private MP3/M4A/WAV import, decode validation, limits, persistence, playback, and deletion;
+- persisted duration and volume, without cold-launch autoplay.
 
-The playback session category must be `.playback`. Pausing must not extend a deadline; stopping clears it; changing duration restarts it at the operation time; an expired session must reject a later remote play command. The first iOS target must not request microphone access.
+## Build and test
+
+```bash
+xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/minimal-sleep-ios-derived build CODE_SIGNING_ALLOWED=NO
+
+xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /tmp/minimal-sleep-ios-tests test
+
+xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /tmp/minimal-sleep-ios-device-derived build CODE_SIGNING_ALLOWED=NO
+```
+
+The committed WAV files are sufficient to build. Python 3.12 and FFmpeg are required only when regenerating the two iOS rain derivatives with `tools/prepare_ios_audio.py`.
+
+## Install on an iPhone
+
+1. Open Xcode **Settings > Accounts** and sign in with your Apple ID.
+2. Select the `MinimalSleep` target, open **Signing & Capabilities**, enable automatic signing, and choose your real Personal Team.
+3. Connect and unlock the iPhone, trust the Mac if prompted, and enable Developer Mode from the phone's normal settings prompt.
+4. Select the iPhone as the run destination and press Run.
+
+Do not add credentials or a Development Team value to Git. An unsigned device build verifies arm64 compilation but cannot be installed. Physical-device acceptance work remains in `docs/ios-validation.md`.

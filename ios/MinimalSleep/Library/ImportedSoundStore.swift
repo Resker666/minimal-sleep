@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 enum ImportedSoundLimits {
@@ -29,6 +30,7 @@ enum ImportedSoundStoreError: Error, Equatable, LocalizedError, Sendable {
     case insufficientFreeSpace
     case invalidFileExtension
     case destinationAlreadyExists
+    case corruptIndex
 
     var errorDescription: String? {
         switch self {
@@ -46,6 +48,22 @@ enum ImportedSoundStoreError: Error, Equatable, LocalizedError, Sendable {
             return "无法识别音频扩展名"
         case .destinationAlreadyExists:
             return "内部文件名冲突，请重试"
+        case .corruptIndex:
+            return "本地音频索引损坏，原音频文件仍保留在设备中"
+        }
+    }
+}
+
+enum ImportedAudioValidationError: Error, Equatable, LocalizedError, Sendable {
+    case undecodable
+    case shorterThanOneSecond
+
+    var errorDescription: String? {
+        switch self {
+        case .undecodable:
+            return "无法解码该音频，请选择有效的 MP3、M4A 或 WAV 文件"
+        case .shorterThanOneSecond:
+            return "音频长度必须至少为 1 秒"
         }
     }
 }
@@ -53,6 +71,7 @@ enum ImportedSoundStoreError: Error, Equatable, LocalizedError, Sendable {
 protocol ImportedSoundFileSystem: Sendable {
     func loadIndex() throws -> Data?
     func saveIndex(_ data: Data) throws
+    func recoverSoundsFromCommittedFiles() throws -> [ImportedSound]
     func totalCommittedBytes() throws -> Int64
     func stageCopy(from sourceURL: URL, stagedFileName: String, maximumBytes: Int64) throws -> StagedImportedFile
     func commit(_ staged: StagedImportedFile, as storedFileName: String) throws
@@ -68,9 +87,9 @@ protocol ImportedAudioValidating: Sendable {
     func validateAudio(stagedFile: StagedImportedFile) throws
 }
 
-protocol ImportedPlaybackControlling: Sendable {
-    func isCurrentImportedSound(id: UUID) -> Bool
-    func stopBeforeDeletingImportedSound(id: UUID)
+@MainActor
+protocol ImportedPlaybackControlling: AnyObject {
+    func stopIfPlayingImportedSound(id: UUID)
 }
 
 actor ImportedSoundStore {
@@ -86,7 +105,7 @@ actor ImportedSoundStore {
         capacityProvider: AvailableCapacityProviding,
         audioValidator: ImportedAudioValidating,
         playbackController: ImportedPlaybackControlling,
-        makeID: @escaping @Sendable () -> UUID = UUID.init
+        makeID: @escaping @Sendable () -> UUID = { UUID() }
     ) {
         self.fileSystem = fileSystem
         self.capacityProvider = capacityProvider
@@ -114,7 +133,7 @@ actor ImportedSoundStore {
         let storedFileName = "\(id.uuidString.lowercased()).\(normalizedExtension)"
         let staged = try fileSystem.stageCopy(
             from: sourceURL,
-            stagedFileName: "\(storedFileName).part",
+            stagedFileName: "\(id.uuidString.lowercased()).part.\(normalizedExtension)",
             maximumBytes: ImportedSoundLimits.maximumFileBytes
         )
         var committed = false
@@ -162,13 +181,11 @@ actor ImportedSoundStore {
         }
     }
 
-    func delete(id: UUID) throws {
+    func delete(id: UUID) async throws {
         let existing = try loadSoundsIfNeeded()
         guard let sound = existing.first(where: { $0.id == id }) else { return }
 
-        if playbackController.isCurrentImportedSound(id: id) {
-            playbackController.stopBeforeDeletingImportedSound(id: id)
-        }
+        await playbackController.stopIfPlayingImportedSound(id: id)
 
         let updated = existing.filter { $0.id != id }
         try persist(updated)
@@ -184,10 +201,26 @@ actor ImportedSoundStore {
     private func loadSoundsIfNeeded() throws -> [ImportedSound] {
         if let cachedSounds { return cachedSounds }
         guard let data = try fileSystem.loadIndex() else {
-            cachedSounds = []
-            return []
+            let recovered = try fileSystem.recoverSoundsFromCommittedFiles()
+            if !recovered.isEmpty {
+                try persist(recovered)
+            }
+            cachedSounds = recovered
+            return recovered
         }
-        let decoded = try JSONDecoder().decode([ImportedSound].self, from: data)
+        let decoded: [ImportedSound]
+        do {
+            decoded = try JSONDecoder().decode([ImportedSound].self, from: data)
+        } catch {
+            do {
+                let recovered = try fileSystem.recoverSoundsFromCommittedFiles()
+                try persist(recovered)
+                cachedSounds = recovered
+                return recovered
+            } catch {
+                throw ImportedSoundStoreError.corruptIndex
+            }
+        }
         cachedSounds = decoded
         return decoded
     }
@@ -249,12 +282,49 @@ final class FileManagerImportedSoundFileSystem: ImportedSoundFileSystem, @unchec
         try data.write(to: indexURL, options: .atomic)
     }
 
+    func recoverSoundsFromCommittedFiles() throws -> [ImportedSound] {
+        let files = try fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]
+        )
+        return try files
+            .filter { url in
+                let name = url.lastPathComponent
+                let ext = url.pathExtension.lowercased()
+                return name != indexURL.lastPathComponent
+                    && !name.hasSuffix(".part")
+                    && !name.contains(".part.")
+                    && ImportedSoundLimits.supportedFileExtensions.contains(ext)
+                    && UUID(uuidString: url.deletingPathExtension().lastPathComponent) != nil
+            }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            .enumerated()
+            .map { offset, url in
+                let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+                guard values.isRegularFile == true,
+                      let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) else {
+                    throw ImportedSoundStoreError.corruptIndex
+                }
+                return ImportedSound(
+                    id: id,
+                    displayName: "已恢复音频 \(offset + 1)",
+                    storedFileName: url.lastPathComponent,
+                    byteCount: Int64(values.fileSize ?? 0)
+                )
+            }
+    }
+
     func totalCommittedBytes() throws -> Int64 {
         try fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]
         )
-        .filter { $0.lastPathComponent != indexURL.lastPathComponent && !$0.lastPathComponent.hasSuffix(".part") }
+        .filter {
+            let name = $0.lastPathComponent
+            return name != indexURL.lastPathComponent
+                && !name.hasSuffix(".part")
+                && !name.contains(".part.")
+        }
         .reduce(0) { result, url in
             let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
             return result + (values.isRegularFile == true ? Int64(values.fileSize ?? 0) : 0)
@@ -313,7 +383,21 @@ final class FileManagerImportedSoundFileSystem: ImportedSoundFileSystem, @unchec
         guard !fileManager.fileExists(atPath: destination.path) else {
             throw ImportedSoundStoreError.destinationAlreadyExists
         }
-        try fileManager.moveItem(at: source, to: destination)
+        var didMove = false
+        do {
+            try fileManager.moveItem(at: source, to: destination)
+            didMove = true
+
+            var committedURL = destination
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try committedURL.setResourceValues(values)
+        } catch {
+            if didMove, fileManager.fileExists(atPath: destination.path) {
+                try? fileManager.removeItem(at: destination)
+            }
+            throw error
+        }
     }
 
     func discard(_ staged: StagedImportedFile) {
@@ -332,11 +416,55 @@ struct FileSystemCapacityProvider: AvailableCapacityProviding {
     let directory: URL
 
     func availableCapacityAfterStaging() throws -> Int64 {
-        let values = try directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values.volumeAvailableCapacityForImportantUsage ?? 0
+        let values = try directory.resourceValues(forKeys: [
+            .volumeAvailableCapacityForImportantUsageKey,
+            .volumeAvailableCapacityKey,
+        ])
+        if let important = values.volumeAvailableCapacityForImportantUsage {
+            return important
+        }
+        if let regular = values.volumeAvailableCapacity {
+            return Int64(regular)
+        }
+        return 0
     }
 }
 
-// TODO（需 Mac 编译）: Implement ImportedAudioValidating with AVFoundation and
-// reject undecodable or shorter-than-one-second audio before commit. Wire the
-// actor to an async UI model so security-scoped copies never block the main actor.
+struct AVFoundationImportedAudioValidator: ImportedAudioValidating {
+    func validateAudio(stagedFile: StagedImportedFile) throws {
+        let file: AVAudioFile
+        do {
+            file = try AVAudioFile(forReading: stagedFile.fileURL)
+        } catch {
+            throw ImportedAudioValidationError.undecodable
+        }
+        let format = file.processingFormat
+        guard format.sampleRate.isFinite,
+              format.sampleRate > 0,
+              Double(file.length) / format.sampleRate >= 1 else {
+            throw ImportedAudioValidationError.shorterThanOneSecond
+        }
+
+        let bufferCapacity = AVAudioFrameCount(min(file.length, 16_384))
+        guard bufferCapacity > 0,
+              let buffer = AVAudioPCMBuffer(
+                  pcmFormat: format,
+                  frameCapacity: bufferCapacity
+              ) else {
+            throw ImportedAudioValidationError.undecodable
+        }
+        do {
+            while file.framePosition < file.length {
+                let remaining = file.length - file.framePosition
+                let framesToRead = AVAudioFrameCount(min(remaining, AVAudioFramePosition(bufferCapacity)))
+                let priorPosition = file.framePosition
+                try file.read(into: buffer, frameCount: framesToRead)
+                guard buffer.frameLength > 0, file.framePosition > priorPosition else {
+                    throw ImportedAudioValidationError.undecodable
+                }
+            }
+        } catch {
+            throw ImportedAudioValidationError.undecodable
+        }
+    }
+}
