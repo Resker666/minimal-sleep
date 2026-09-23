@@ -1,6 +1,6 @@
 # 第三方来源与许可证
 
-本项目原创 Kotlin/Python 源码及三段生成 WAV 按根目录 `LICENSE` 的 Apache-2.0 条款提供。两段 Resker666 录制雨声音轨的剪辑 `rain-01.ogg`、`rain-04.ogg` 按 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 提供；署名 **Resker666**，修改为各取第 600–900 秒、尾首交叉淡化 2 秒并转码 Ogg，第二段另降低至 0.75 倍增益。用户于 2026-09-22 确认本人持有两段音轨的权利并作此授权。音频处理方式及 SHA-256 见 `docs/assets.md`、`assets-manifest.csv`。内置 Google YAMNet Lite v1 模型及标签，来源、哈希与局限见 `docs/model-assets.md`；模型页标示 Apache-2.0。用户自行导入的手机本地音频只留在 App 私有目录，不随源码或 APK 分发。
+本项目原创 Kotlin、Swift、Python 源码及三段生成 WAV 按根目录 `LICENSE` 的 Apache-2.0 条款提供。两段 Resker666 录制雨声音轨的剪辑 `rain-01.ogg`、`rain-04.ogg` 及其 iOS PCM WAV 派生文件按 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 提供；署名 **Resker666**，修改为各取第 600–900 秒、尾首交叉淡化 2 秒并转码 Ogg，第二段另降低至 0.75 倍增益，iOS 派生步骤仅解码为 PCM WAV。用户于 2026-09-22 确认本人持有两段音轨的权利并作此授权。音频处理方式及 SHA-256 见 `docs/assets.md`、`assets-manifest.csv` 和 `ios/MinimalSleep/Resources/audio-derivations.json`。内置 Google YAMNet Lite v1 模型及标签，来源、哈希与局限见 `docs/model-assets.md`；模型页标示 Apache-2.0。用户自行导入的手机本地音频只留在 App 私有目录，不随源码、APK 或 iOS App 分发。
 
 | 直接依赖 | 固定版本 | 来源 | 许可证 | 用途 |
 |---|---|---|---|---|

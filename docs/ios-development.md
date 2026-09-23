@@ -1,31 +1,85 @@
-# iOS development handoff
+# iOS development
 
-## Current environment
+## Verified local environment
 
-This preparation was performed on a company Windows computer on 2026-09-22. There is no Mac, Xcode, iOS simulator, or connected iPhone in this environment. Per the task boundary, none of `sw_vers`, `xcode-select`, `xcodebuild`, `simctl`, or `devicectl` was run. Task 0 environment verification remains for the M4 Mac tonight.
+Checked on 2026-09-23:
 
-The repository baseline was clean `main` at `2e22a7405551ec5f9540657d06388a44f098aba4`; work continued on `codex/ios-mvp`. No Apple build result exists yet.
+| Item | Actual value |
+|---|---|
+| Mac | Apple silicon (`arm64`) |
+| macOS | 27.0 (`26A428`) |
+| Active developer directory | `/Applications/Xcode.app/Contents/Developer` |
+| Xcode | 27.0 (`27A266a`) |
+| iOS SDK | 27.0 |
+| iOS Simulator SDK/runtime | 27.0 |
+| Test simulator | iPhone 18 Pro, iOS 27.0, `75FA9690-7229-4F85-96C1-284AD9262383` |
+| Physical device visibility | `朱颜辞镜花辞树`, iPhone18,1, listed as `unavailable` |
+| Python used for audio tools | Homebrew Python 3.12.14 |
+| FFmpeg used for iOS derivation | Homebrew FFmpeg 9.0.2 |
 
-## Create the Xcode project tonight
+The work started from `codex/ios-mvp` at `4d8abbb`. Local `main` was merged without conflicts, producing `b37aba5`, before the Mac implementation continued.
 
-1. Run every task 0 command from `docs/minimal-sleep-ios-codex-plan.md` on the M4 and paste versions, destinations, exit codes, and any device visibility issue into this file and `docs/ios-validation.md`.
-2. Run `python3 tools/prepare_ios_audio.py` with an installed `ffmpeg`. Confirm the command prints hashes for both rain WAV files and that `audio-derivations.json` and `assets-manifest.csv` contain the same hashes.
-3. Create a temporary Xcode iOS App project named `MinimalSleep`: SwiftUI interface, Swift language, XCTest included, and no new Git repository. Move the resulting `MinimalSleep.xcodeproj` to `ios/`, then replace its generated source references with the existing `ios/MinimalSleep/` tree. Add `ios/MinimalSleepTests/` only to the test target.
-4. In the app target, set Bundle Identifier `io.github.resker666.minimalsleep` and iOS deployment target 17.0. Add all five resource WAV files to the app target and **Copy Bundle Resources**.
-5. Add only the background `audio` mode. Do not add `NSMicrophoneUsageDescription`; this playback MVP must not request microphone permission. Do not enable HealthKit, Watch, alarm, account, network, or recording features.
-6. Replace the explicit `TODO（需 Mac 编译）` boundaries with real AVFoundation/MediaPlayer implementations, keeping one player/session owner and the existing state-machine rules. Run XCTest and simulator builds before signing work.
+## Project configuration
 
-## Personal Team device installation
+- Project: `ios/MinimalSleep.xcodeproj`
+- Shared scheme: `MinimalSleep`
+- Deployment target: iOS 17.0
+- Bundle identifier: `io.github.resker666.minimalsleep`
+- Background mode: `audio`
+- App entry: `ios/MinimalSleep/App/MinimalSleepApp.swift`
+- Tests: `ios/MinimalSleepTests/`
 
-1. In Xcode **Settings > Accounts**, sign in to the user's Apple ID. Never put the account password, certificate, profile, or team identifier in documentation or Git.
-2. In the `MinimalSleep` target's **Signing & Capabilities**, enable automatic signing and select the user's real Personal Team. If the exact Bundle ID conflicts, record the error before choosing any alternative; do not invent a team or identifier.
-3. Connect the iPhone, unlock it, trust the Mac if prompted, and enable Developer Mode only through the device's normal system prompt/settings.
-4. Select that iPhone as the run destination and press Run. A free Personal Team build is a development install and may require periodic re-signing; it is not an App Store or permanent distribution build.
-5. Do not uninstall an app merely to resolve signing if it contains user data. Record the installed commit, iOS/Xcode versions, and result in `docs/ios-validation.md`.
+The playback MVP does not declare `NSMicrophoneUsageDescription` and does not contain recording, HealthKit, Watch, account, network, or model-inference features. Imported files and their JSON index live in the app's private Application Support directory and are excluded from backup.
 
-## Source boundaries prepared on Windows
+## Build from Terminal
 
-- `SleepTimerPolicy` uses an injected monotonic uptime and absolute deadline. UI ticks only refresh derived state.
-- `ImportedSoundStore` is an actor, uses UUID filenames, enforces all four limits after staged copy, commits the index last, and stops current playback before deletion.
-- `AudioCoordinator` and `NowPlayingController` define state and call points only. They do not claim AVFoundation or MediaPlayer playback.
-- The first build must remain offline and playback-only. Recording, microphone permission, LiteRT/YAMNet, HealthKit, Watch, alarms, accounts, and networking remain outside this pass.
+```bash
+xcodebuild -list -project ios/MinimalSleep.xcodeproj
+
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/minimal-sleep-ios-derived \
+  build CODE_SIGNING_ALLOWED=NO
+
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=75FA9690-7229-4F85-96C1-284AD9262383' \
+  -derivedDataPath /tmp/minimal-sleep-ios-tests \
+  test
+
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep \
+  -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /tmp/minimal-sleep-ios-device-derived \
+  build CODE_SIGNING_ALLOWED=NO
+```
+
+The test destination UUID is local evidence, not a portable command. On another Mac, use `xcrun simctl list devices available` and substitute an available iPhone simulator.
+
+## Audio resource regeneration
+
+The five WAV resources are committed, so normal app builds do not need Python or FFmpeg. To regenerate the two licensed rain derivatives from the existing Android Ogg files:
+
+```bash
+/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py \
+  --ffmpeg /opt/homebrew/bin/ffmpeg
+```
+
+The script refuses to overwrite existing output. Remove generated derivatives only when intentionally regenerating them, then verify the resulting hashes against `ios/MinimalSleep/Resources/audio-derivations.json` and `assets-manifest.csv`.
+
+Homebrew's regular FFmpeg 9.0.2 can decode Vorbis and write PCM, but it does not include the `libvorbis` encoder. The iOS preparation tests pass and iOS resource generation succeeds. Four older `prepare_loop` tests that create Ogg output fail in this local environment with `Unknown encoder 'libvorbis'`; this is a tool capability difference, not an iOS source failure.
+
+## Personal Team installation
+
+1. Open Xcode **Settings > Accounts** and sign in with your Apple ID. Do not place the password, certificate, provisioning profile, or Team ID in the repository.
+2. Select the `MinimalSleep` target, open **Signing & Capabilities**, enable automatic signing, and choose your real Personal Team.
+3. Connect and unlock the iPhone. Trust the Mac and enable Developer Mode only through the phone's normal prompts and settings.
+4. Select the iPhone as the run destination and press Run.
+5. If the exact bundle identifier conflicts, record the Xcode error before changing it. Do not uninstall an existing app that contains private imported data merely to solve signing.
+
+The current physical iPhone is visible to CoreDevice but unavailable, so signing, installation, background playback, lock-screen behavior, route changes, and listening tests still require user action on the device.

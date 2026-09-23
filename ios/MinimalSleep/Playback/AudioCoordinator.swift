@@ -1,8 +1,11 @@
 import Combine
 import Foundation
 
+@MainActor
 protocol AudioPlaybackEngine: AnyObject {
     var loadedSoundID: String? { get }
+    var onPlaybackMustPause: (() -> Void)? { get set }
+    var onPlaybackFailed: ((String) -> Void)? { get set }
     func load(sound: SoundDescriptor, resourceURL: URL) throws
     func play() throws
     func pause()
@@ -10,9 +13,35 @@ protocol AudioPlaybackEngine: AnyObject {
     func setVolume(_ volume: Float)
 }
 
-// TODO（需 Mac 编译）: Add the AVFoundation-backed AudioPlaybackEngine on the Mac.
-// It must own the only AVAudioPlayer, configure AVAudioSession as .playback, loop
-// indefinitely, and forward interruption/old-device-unavailable events here.
+@MainActor
+protocol SleepTimerScheduling: AnyObject {
+    func start(tick: @escaping () -> Void)
+    func stop()
+}
+
+@MainActor
+final class DispatchSleepTimerScheduler: SleepTimerScheduling {
+    private var timer: DispatchSourceTimer?
+
+    func start(tick: @escaping () -> Void) {
+        stop()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(
+            deadline: .now() + .milliseconds(250),
+            repeating: .milliseconds(250),
+            leeway: .milliseconds(50)
+        )
+        timer.setEventHandler(handler: tick)
+        self.timer = timer
+        timer.resume()
+    }
+
+    func stop() {
+        timer?.setEventHandler {}
+        timer?.cancel()
+        timer = nil
+    }
+}
 
 @MainActor
 final class AudioCoordinator: ObservableObject {
@@ -56,29 +85,48 @@ final class AudioCoordinator: ObservableObject {
 
     var selectedDuration: SleepDuration { timerPolicy.selectedDuration }
     var isPlaying: Bool { playbackState == .playing }
+    var currentImportedSoundID: UUID? { selectedSound.importedSoundID }
 
     private let engine: AudioPlaybackEngine?
     private let resourceBundle: Bundle
-    private let nowPlaying: NowPlayingController
+    private let nowPlaying: NowPlayingControlling
+    private let scheduler: SleepTimerScheduling
+    private let preferences: PlaybackPreferencesStoring?
     private var timerPolicy: SleepTimerPolicy
     private var sessionGeneration = 0
 
     init(
         engine: AudioPlaybackEngine? = nil,
         resourceBundle: Bundle = .main,
-        nowPlaying: NowPlayingController = NowPlayingController(),
+        nowPlaying: NowPlayingControlling? = nil,
+        scheduler: SleepTimerScheduling? = nil,
+        preferences: PlaybackPreferencesStoring? = nil,
         timerPolicy: SleepTimerPolicy = SleepTimerPolicy()
     ) {
         self.engine = engine
         self.resourceBundle = resourceBundle
-        self.nowPlaying = nowPlaying
-        self.timerPolicy = timerPolicy
-        self.timerSnapshot = timerPolicy.snapshot()
+        self.nowPlaying = nowPlaying ?? NowPlayingController()
+        self.scheduler = scheduler ?? DispatchSleepTimerScheduler()
+        self.preferences = preferences
+        var restoredPolicy = timerPolicy
+        if let savedDuration = preferences?.selectedDuration {
+            restoredPolicy.select(savedDuration, whileSessionIsActive: false)
+        }
+        self.timerPolicy = restoredPolicy
+        self.timerSnapshot = restoredPolicy.snapshot()
+        self.baseVolume = min(1, max(0, preferences?.baseVolume ?? 0.5))
+        self.engine?.setVolume(self.baseVolume)
 
-        nowPlaying.configureRemoteCommands(
+        self.nowPlaying.configureRemoteCommands(
             onPlay: { [weak self] in self?.play(origin: .remoteCommand) },
             onPause: { [weak self] in self?.pause() }
         )
+        self.engine?.onPlaybackMustPause = { [weak self] in
+            self?.handleInterruptionOrUnsafeRouteChange()
+        }
+        self.engine?.onPlaybackFailed = { [weak self] message in
+            self?.handlePlaybackFailure(message)
+        }
     }
 
     func selectSound(_ sound: SoundDescriptor) {
@@ -86,6 +134,7 @@ final class AudioCoordinator: ObservableObject {
         let shouldResume = playbackState == .playing
         let shouldRemainPaused = playbackState == .paused
         sessionGeneration += 1
+        scheduler.stop()
         engine?.stop()
         selectedSound = sound
         playbackState = shouldResume ? .loading : (shouldRemainPaused ? .paused : .stopped)
@@ -93,19 +142,33 @@ final class AudioCoordinator: ObservableObject {
             play(origin: .user)
         } else if shouldRemainPaused {
             publishNowPlaying()
+            scheduleTimerIfNeeded()
         } else {
             nowPlaying.clear()
         }
     }
 
+    func selectImportedSound(_ sound: ImportedSound, fileURL: URL) {
+        selectSound(.imported(sound, fileURL: fileURL))
+    }
+
     func selectDuration(_ duration: SleepDuration) {
-        let active = timerSnapshot.isArmed
+        let active = playbackState == .playing
+            || playbackState == .paused
+            || playbackState == .loading
+        if active {
+            sessionGeneration += 1
+            scheduler.stop()
+        }
         timerPolicy.select(duration, whileSessionIsActive: active)
+        preferences?.selectedDuration = duration
         refreshTimer()
+        scheduleTimerIfNeeded()
     }
 
     func setBaseVolume(_ value: Float) {
         baseVolume = min(1, max(0, value))
+        preferences?.baseVolume = baseVolume
         applyEffectiveVolume()
     }
 
@@ -119,7 +182,11 @@ final class AudioCoordinator: ObservableObject {
             return
         }
 
-        if origin == .user && (playbackState == .stopped || playbackState == .expired) {
+        if origin == .user && (
+            playbackState == .stopped
+                || playbackState == .expired
+                || timerPolicy.snapshot().isExpired
+        ) {
             sessionGeneration += 1
             timerPolicy.start()
         } else if !timerPolicy.snapshot().isArmed {
@@ -129,7 +196,7 @@ final class AudioCoordinator: ObservableObject {
         do {
             if engine.loadedSoundID != selectedSound.id {
                 playbackState = .loading
-                guard let url = resourceBundle.url(
+                guard let url = selectedSound.directResourceURL ?? resourceBundle.url(
                     forResource: selectedSound.resourceBaseName,
                     withExtension: selectedSound.resourceExtension
                 ) else {
@@ -142,10 +209,12 @@ final class AudioCoordinator: ObservableObject {
             try engine.play()
             playbackState = .playing
             refreshTimer()
+            scheduleTimerIfNeeded()
             publishNowPlaying()
         } catch {
             engine.stop()
             timerPolicy.stop()
+            scheduler.stop()
             refreshTimer()
             playbackState = .failed(error.localizedDescription)
             nowPlaying.clear()
@@ -163,6 +232,7 @@ final class AudioCoordinator: ObservableObject {
 
     func stop() {
         sessionGeneration += 1
+        scheduler.stop()
         engine?.stop()
         timerPolicy.stop()
         playbackState = .stopped
@@ -175,15 +245,24 @@ final class AudioCoordinator: ObservableObject {
         pause()
     }
 
+    func handlePlaybackFailure(_ message: String) {
+        sessionGeneration += 1
+        scheduler.stop()
+        engine?.stop()
+        timerPolicy.stop()
+        playbackState = .failed(message)
+        refreshTimer()
+        nowPlaying.clear()
+    }
+
     func refreshTimer() {
-        // TODO（需 Mac 编译）: Call this from an audio-session-owned background-safe
-        // scheduler while a session is armed. SwiftUI's display timer is not the owner.
         let snapshot = timerPolicy.snapshot()
         timerSnapshot = snapshot
         applyEffectiveVolume()
         guard snapshot.isExpired, playbackState != .expired else { return }
 
         sessionGeneration += 1
+        scheduler.stop()
         engine?.stop()
         playbackState = .expired
         nowPlaying.clear()
@@ -194,6 +273,17 @@ final class AudioCoordinator: ObservableObject {
         engine?.setVolume(baseVolume * gain)
     }
 
+    private func scheduleTimerIfNeeded() {
+        scheduler.stop()
+        guard timerSnapshot.isArmed, timerSnapshot.remaining != nil else { return }
+
+        let generation = sessionGeneration
+        scheduler.start { [weak self] in
+            guard let self, self.sessionGeneration == generation else { return }
+            self.refreshTimer()
+        }
+    }
+
     private func publishNowPlaying() {
         nowPlaying.publish(
             .init(
@@ -202,5 +292,13 @@ final class AudioCoordinator: ObservableObject {
                 isPlaying: playbackState == .playing
             )
         )
+    }
+}
+
+extension AudioCoordinator: ImportedPlaybackControlling {
+    func stopIfPlayingImportedSound(id: UUID) {
+        guard currentImportedSoundID == id else { return }
+        stop()
+        selectSound(SoundCatalog.builtIn[0])
     }
 }

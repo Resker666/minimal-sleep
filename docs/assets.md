@@ -25,7 +25,7 @@
 
 ## iOS 资源准备
 
-2026-09-22 的 Windows 准备轮次没有 Mac、Xcode 或 Swift。白噪声、合成大雨、合成海浪本来就是 48 kHz、16-bit、单声道 PCM WAV，因此仅逐字节复制到 `ios/MinimalSleep/Resources/`，没有重新生成、转码或改动 Android 原件。三份 iOS 副本的 SHA-256 分别与 Android 原件相同：
+白噪声、合成大雨、合成海浪本来就是 48 kHz、16-bit、单声道 PCM WAV，因此仅逐字节复制到 `ios/MinimalSleep/Resources/`，没有重新生成、转码或改动 Android 原件。三份 iOS 副本的 SHA-256 分别与 Android 原件相同：
 
 | iOS 资源 | SHA-256 |
 |---|---|
@@ -35,10 +35,17 @@
 
 两段雨声不能把 Ogg 直接声明为 AVAudioPlayer 可播放资源。新增的 `tools/prepare_ios_audio.py` 读取已经完成循环剪辑的 `app/src/main/assets/local-sounds/rain-01.ogg`、`rain-04.ogg`，使用 FFmpeg `pcm_s16le` 输出 PCM WAV；命令没有裁剪、交叉淡化、滤镜、增益、声道转换或重采样。脚本拒绝覆盖输出，并在成功后写入源/输出 SHA-256、完整命令、PCM 参数、作者 **Resker666**、许可证 **CC BY 4.0** 和修改说明到 `ios/MinimalSleep/Resources/audio-derivations.json`，同时更新 `assets-manifest.csv`。
 
-本机 PATH 与仓库 `.tools` 均未找到 FFmpeg 或其他 Ogg 解码器，因此本轮**没有实际生成** `rain-01.wav`、`rain-04.wav`，也没有输出哈希；不得把脚本存在解释为转码完成。今晚在 M4 上安装/确认 FFmpeg 后，从仓库根目录运行：
+2026-09-23 在 M4 Mac 上使用 Homebrew FFmpeg 9.0.2 实际生成两段派生资源。两份输出均为 298 秒、44.1 kHz、双声道、16-bit PCM WAV：
+
+| iOS 录制雨声派生资源 | SHA-256 |
+|---|---|
+| `rain-01.wav` | `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269` |
+| `rain-04.wav` | `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc` |
+
+若需要从头重新派生，先有意移除已有输出，再从仓库根目录运行：
 
 ```bash
-python3 tools/prepare_ios_audio.py
+/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py --ffmpeg /opt/homebrew/bin/ffmpeg
 ```
 
-这一步只派生 iOS 文件，不覆盖两份 Android Ogg。脚本成功生成的雨声仍须保留 Resker666 / CC BY 4.0 署名，并在 iPhone 上跨实际循环边界试听；PCM 格式和哈希检查不能证明接缝听不出。
+这一步只派生 iOS 文件，不覆盖两份 Android Ogg。脚本拒绝覆盖已有输出。雨声保留 Resker666 / CC BY 4.0 署名；仍须在 iPhone 上跨实际循环边界试听，PCM 格式和哈希检查不能证明接缝听不出。

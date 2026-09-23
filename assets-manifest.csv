@@ -7,3 +7,5 @@ app/src/main/assets/local-sounds/rain-04.ogg,Resker666,Resker666 original rain r
 ios/MinimalSleep/Resources/white_noise.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/white_noise.wav,Apache-2.0,bbc0563b65641da92ef3143def417bb7aa22f3d3d383e1235af3496c7681e3e0
 ios/MinimalSleep/Resources/heavy_rain.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/heavy_rain.wav,Apache-2.0,13104bdce5e7f7f4cfcada32f34a205f321d1247f53fe80be737c04aa06675fa
 ios/MinimalSleep/Resources/ocean_waves.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/ocean_waves.wav,Apache-2.0,b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa
+ios/MinimalSleep/Resources/rain-01.wav,Resker666,app/src/main/assets/local-sounds/rain-01.ogg transcoded without trimming or resampling by tools/prepare_ios_audio.py,CC-BY-4.0,bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269
+ios/MinimalSleep/Resources/rain-04.wav,Resker666,app/src/main/assets/local-sounds/rain-04.ogg transcoded without trimming or resampling by tools/prepare_ios_audio.py,CC-BY-4.0,3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc

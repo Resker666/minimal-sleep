@@ -1,32 +1,77 @@
 # iOS validation
 
-Updated: 2026-09-22. This file is intentionally separate from the Android validation record. The preparation environment was Windows without Swift, Xcode, simulator, or iPhone access, so every Apple build and runtime row is **未测**.
+Updated: 2026-09-23. Automated evidence was collected on macOS 27.0 (`26A428`) with Xcode 27.0 (`27A266a`). The build commit field remains `未提交` because the Mac implementation is currently a reviewable working-tree change on `codex/ios-mvp` after merge commit `b37aba5`.
 
 | Test | Device / OS / Xcode | Build commit | Conditions | Actual result / evidence | Status |
 |---|---|---|---|---|---|
-| Swift source compile | 未记录 | 未提交 | Xcode app target | 未运行；当前没有 `.xcodeproj` | 未测 |
-| XCTest: timer policy | 未记录 | 未提交 | `SleepTimerPolicyTests` | 测试源码已写，本机无 Swift/Xcode，未运行 | 未测 |
-| XCTest: import limits and transactions | 未记录 | 未提交 | `ImportedSoundStoreTests` with fake file system/disk | 测试源码已写，本机无 Swift/Xcode，未运行 | 未测 |
-| XCTest: catalog and coordinator expiry | 未记录 | 未提交 | `SoundCatalogTests`, `AudioCoordinatorTests` | 测试源码已写，本机无 Swift/Xcode，未运行 | 未测 |
-| Simulator build and launch | 未记录 | 未提交 | iOS 17+ simulator | 未运行 | 未测 |
-| Generic iOS device unsigned build | 未记录 | 未提交 | `CODE_SIGNING_ALLOWED=NO` | 未运行 | 未测 |
-| Launch, switch, pause, volume | 未记录 | 未提交 | iPhone short test | 未运行 | 未测 |
-| Each rain track crosses two loop boundaries | 未记录 | 未提交 | User listening, identify output route | 未运行；功能循环与无缝听感均未验证 | 未测 |
-| Locked playback for 30-60 minutes | 未记录 | 未提交 | Screen locked, no debugger keepalive | 未运行 | 未测 |
-| Actual 15-minute deadline and final 10-second fade | 未记录 | 未提交 | Screen locked | 未运行 | 未测 |
-| Headphone removal, call, and audio interruption | 未记录 | 未提交 | Manual route/interruption tests | 未运行 | 未测 |
-| Local/provider MP3, M4A, WAV import and cancel | 未记录 | 未提交 | Legal user-selected fixtures | 未运行 | 未测 |
-| Delete current item and rapid switching | 未记录 | 未提交 | Device stress sequence | 未运行 | 未测 |
-| Force quit, relaunch, and overwrite install | 未记录 | 未提交 | Preserve imported data; do not uninstall | 未运行 | 未测 |
-| Airplane mode | 未记录 | 未提交 | Built-in and imported playback | 未运行 | 未测 |
-| Eight-hour overnight playback | 未记录 | 未提交 | Record battery, charging, low-power mode, screen, route, duration, temperature | 未运行 | 未测 |
+| Swift source compile | Apple silicon Mac / Xcode 27.0 | 未提交 | App and test targets | XCTest build completed | 通过 |
+| XCTest: timer, coordinator, imports, decode, catalog, preferences | iPhone 18 Pro simulator / iOS 27.0 | 未提交 | Injected monotonic clock, fake storage/capacity, real bundled WAV decode | 31 passed, 0 failed, 0 skipped | 通过 |
+| Simulator generic build | iOS Simulator SDK 27.0 | 未提交 | Debug, `CODE_SIGNING_ALLOWED=NO` | `xcodebuild` exit 0 | 通过 |
+| Simulator install and launch | iPhone 18 Pro simulator / iOS 27.0 | 未提交 | Five bundled WAV files | `simctl install` and `launch` exit 0; first screen rendered | 通过 |
+| Generic iOS device build | iOS SDK 27.0 / arm64 | 未提交 | Debug, unsigned | `xcodebuild` exit 0; this does not install to a phone | 通过 |
+| Bundle resources and privacy keys | Simulator and device app bundles | 未提交 | Inspect built bundles and Info.plist | Both contain 5 WAV files; background `audio` present; microphone key absent | 通过 |
+| Launch, switch, pause, volume | Physical iPhone | 未提交 | Short listening test | Device listed as unavailable; not run | 未测 |
+| Each rain track crosses two loop boundaries | Physical iPhone | 未提交 | User listening; each track is 298 seconds | PCM format/hash verified; audible seam, pop, and silence not tested | 未测 |
+| Locked playback for 30–60 minutes | Physical iPhone | 未提交 | Screen locked, no debugger keepalive | Not run | 未测 |
+| Actual 15-minute deadline and final 10-second fade | Physical iPhone | 未提交 | Screen locked | Policy/scheduler tests pass; real-time phone test not run | 未测 |
+| Headphone removal, call, and audio interruption | Physical iPhone | 未提交 | Manual route/interruption tests | Notification handling compiled and coordinator test passes; physical behavior not run | 未测 |
+| Local/provider MP3, M4A, WAV import and cancel | Physical iPhone | 未提交 | Legal user-selected fixtures | Store limits/transactions and bundled WAV decode tests pass; provider flow not run | 未测 |
+| Delete current item and rapid switching | Physical iPhone | 未提交 | Device stress sequence | Delete-before-remove and stale-timer tests pass; physical stress test not run | 未测 |
+| Force quit, relaunch, and overwrite install | Physical iPhone | 未提交 | Preserve private imports; do not uninstall | JSON reopen and preference tests pass; installation update not run | 未测 |
+| Airplane mode | Physical iPhone | 未提交 | Built-in and imported playback | No runtime networking dependency; not run | 未测 |
+| Eight-hour overnight playback | Physical iPhone | 未提交 | Record battery, charging, low-power mode, screen, route, duration, temperature | Not run | 未测 |
 
-## Windows-only evidence
+## Commands and results
 
-- `git status --short --branch`, `git branch --show-current`, and `git rev-parse HEAD` were run before changes; the starting tree was clean `main` at `2e22a7405551ec5f9540657d06388a44f098aba4`.
-- Source Ogg and existing PCM WAV SHA-256 values were checked locally against `assets-manifest.csv`.
-- No `ffmpeg`, `ffprobe`, or Swift executable was found in PATH or repository `.tools`; rain conversion and every XCTest remain unrun.
-- `python.exe -m py_compile tools/prepare_ios_audio.py` and `python.exe tools/prepare_ios_audio.py --help` exited 0. Running the conversion command itself exited 1 with the explicit missing-FFmpeg message and created no rain WAV.
-- `python.exe -m unittest discover -s tools -p 'test_*.py' -v` exited 0: 14 tests completed, with 6 pre-existing FFmpeg-dependent loop tests skipped; all 4 new iOS conversion-script tests passed.
-- Python `wave` inspection exited 0 and confirmed each copied iOS WAV is 48 kHz, mono, 16-bit, uncompressed PCM. `git diff --check` exited 0.
-- These checks are file/source evidence only and do not validate iOS playback, loop quality, background behavior, import decoding, signing, or installation.
+### XCTest
+
+```bash
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=75FA9690-7229-4F85-96C1-284AD9262383' \
+  -derivedDataPath /tmp/minimal-sleep-final-tests-derived \
+  -resultBundlePath /tmp/minimal-sleep-final-tests.xcresult \
+  test -quiet
+```
+
+Exit code 0. The final result reported 31 total tests, all passed. Tests cover timer deadlines and fade ratios, long UI gaps, pause/stop rules, background scheduler expiry, paused sound switching, stale callbacks, unsafe audio events, runtime decode failure, stopped/expired remote commands, imported playback URLs, preference restoration without autoplay, import limits/transactions, staging byte accounting, corrupt-index recovery, restart index reads, delete-before-file-removal, catalog metadata, and complete AVAudioFile reading of a bundled WAV plus rejection of invalid bytes.
+
+### Builds
+
+```bash
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep -configuration Debug \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/minimal-sleep-final-sim-build \
+  build CODE_SIGNING_ALLOWED=NO -quiet
+
+xcodebuild -project ios/MinimalSleep.xcodeproj \
+  -scheme MinimalSleep -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /tmp/minimal-sleep-final-device-build \
+  build CODE_SIGNING_ALLOWED=NO -quiet
+```
+
+Both commands exited 0. Unsigned device compilation only verifies the device architecture and SDK build; it is not installable.
+
+### Audio preparation
+
+```bash
+/opt/homebrew/bin/python3.12 -m unittest discover \
+  -s tools -p 'test_prepare_ios_audio.py' -v
+
+/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py \
+  --ffmpeg /opt/homebrew/bin/ffmpeg
+```
+
+Both commands exited 0. The two outputs are 298-second, 44.1 kHz, stereo, 16-bit PCM WAV files. SHA-256 values:
+
+- `rain-01.wav`: `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269`
+- `rain-04.wav`: `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc`
+
+Running every Python tool test produced 10 passes and 4 failures. All four failures are existing Ogg-output tests in `test_prepare_loop.py`; Homebrew's regular FFmpeg 9.0.2 exposes the native Vorbis encoder but not the script's required `libvorbis` encoder. The failure is retained as environment evidence and was not reported as a pass.
+
+## Physical-device handoff
+
+`xcrun devicectl list devices` sees `朱颜辞镜花辞树` (iPhone18,1) but reports it as `unavailable`. After the phone is connected, unlocked, trusted, Developer Mode is enabled, and a real Personal Team is selected in Xcode, execute the rows above in order. Record the output route and exact device/iOS/Xcode versions. A simulator launch does not establish actual speaker output, lock-screen continuity, audible loop quality, route safety, or overnight reliability.

@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 @testable import MinimalSleep
 
+@MainActor
 final class ImportedSoundStoreTests: XCTestCase {
     private let sourceURL = URL(fileURLWithPath: "/fake/source.wav")
 
@@ -193,19 +194,68 @@ final class ImportedSoundStoreTests: XCTestCase {
         XCTAssertEqual(soundsAfterDelete, [])
     }
 
+    func testPersistedIndexIsReadableByANewStoreInstance() async throws {
+        let fileSystem = FakeImportedSoundFileSystem(byteCounts: [10])
+        let firstStore = makeStore(fileSystem: fileSystem)
+        let imported = try await firstStore.importSound(
+            from: sourceURL,
+            displayName: "persisted.wav",
+            fileExtension: "wav"
+        )
+
+        let reopenedStore = makeStore(fileSystem: fileSystem)
+        let reopenedSounds = try await reopenedStore.allSounds()
+
+        XCTAssertEqual(reopenedSounds, [imported])
+    }
+
+    func testCorruptIndexIsRebuiltFromCommittedUUIDFiles() async throws {
+        let recoveredID = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
+        let storedName = "\(recoveredID.uuidString.lowercased()).wav"
+        let fileSystem = FakeImportedSoundFileSystem(
+            byteCounts: [],
+            committedFiles: [storedName: 42]
+        )
+        fileSystem.indexData = Data("{not-json".utf8)
+        let store = makeStore(fileSystem: fileSystem)
+
+        let recovered = try await store.allSounds()
+
+        XCTAssertEqual(recovered.count, 1)
+        XCTAssertEqual(recovered[0].id, recoveredID)
+        XCTAssertEqual(recovered[0].storedFileName, storedName)
+        XCTAssertEqual(recovered[0].byteCount, 42)
+        XCTAssertNoThrow(try JSONDecoder().decode([ImportedSound].self, from: XCTUnwrap(fileSystem.indexData)))
+    }
+
+    func testFileManagerByteCountExcludesExtensionPreservingStagedFile() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fileSystem = try FileManagerImportedSoundFileSystem(directory: directory)
+        try Data(repeating: 1, count: 7).write(
+            to: directory.appendingPathComponent("00000000-0000-0000-0000-000000000001.wav")
+        )
+        try Data(repeating: 2, count: 9).write(
+            to: directory.appendingPathComponent("00000000-0000-0000-0000-000000000002.part.wav")
+        )
+
+        XCTAssertEqual(try fileSystem.totalCommittedBytes(), 7)
+    }
+
     private func makeStore(
         fileSystem: FakeImportedSoundFileSystem,
         capacity: FakeCapacityProvider = FakeCapacityProvider(availableBytes: Int64.max),
         validator: FakeAudioValidator = FakeAudioValidator(),
-        playback: FakePlaybackController = FakePlaybackController(),
+        playback: FakePlaybackController? = nil,
         ids: UUIDSequence = UUIDSequence()
     ) -> ImportedSoundStore {
         ImportedSoundStore(
             fileSystem: fileSystem,
             capacityProvider: capacity,
             audioValidator: validator,
-            playbackController: playback,
-            makeID: ids.next
+            playbackController: playback ?? FakePlaybackController(),
+            makeID: { ids.next() }
         )
     }
 
@@ -257,9 +307,15 @@ private final class FakeImportedSoundFileSystem: ImportedSoundFileSystem, @unche
     var committedFileNames: Set<String> { Set(committed.keys) }
     var stagedTokens: Set<String> { Set(staged.keys) }
 
-    init(byteCounts: [Int64], committedBytes: Int64 = 0, events: EventLog? = nil) {
+    init(
+        byteCounts: [Int64],
+        committedBytes: Int64 = 0,
+        committedFiles: [String: Int64] = [:],
+        events: EventLog? = nil
+    ) {
         self.byteCounts = byteCounts
         self.extraCommittedBytes = committedBytes
+        self.committed = committedFiles
         self.events = events
     }
 
@@ -271,6 +327,23 @@ private final class FakeImportedSoundFileSystem: ImportedSoundFileSystem, @unche
             throw TestFailure.indexWrite
         }
         indexData = data
+    }
+
+    func recoverSoundsFromCommittedFiles() throws -> [ImportedSound] {
+        committed.keys.sorted().enumerated().compactMap { offset, storedFileName in
+            let fileURL = URL(fileURLWithPath: storedFileName)
+            guard ImportedSoundLimits.supportedFileExtensions.contains(
+                fileURL.pathExtension.lowercased()
+            ), let id = UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) else {
+                return nil
+            }
+            return ImportedSound(
+                id: id,
+                displayName: "已恢复音频 \(offset + 1)",
+                storedFileName: storedFileName,
+                byteCount: committed[storedFileName] ?? 0
+            )
+        }
     }
 
     func totalCommittedBytes() throws -> Int64 {
@@ -324,12 +397,13 @@ private struct FakeAudioValidator: ImportedAudioValidating {
     }
 }
 
-private final class FakePlaybackController: ImportedPlaybackControlling, @unchecked Sendable {
+@MainActor
+private final class FakePlaybackController: ImportedPlaybackControlling {
     var currentID: UUID?
     private let events: EventLog?
     init(events: EventLog? = nil) { self.events = events }
-    func isCurrentImportedSound(id: UUID) -> Bool { currentID == id }
-    func stopBeforeDeletingImportedSound(id: UUID) {
+    func stopIfPlayingImportedSound(id: UUID) {
+        guard currentID == id else { return }
         events?.values.append("stop:\(id)")
         currentID = nil
     }
