@@ -51,13 +51,19 @@ class PrepareLoopTest(unittest.TestCase):
             "ffprobe", "-v", "error", "-show_entries", "format=duration",
             "-of", "json", str(self.output),
         ]))
-        self.assertAlmostEqual(4.5, float(probe["format"]["duration"]), delta=0.03)
         decoded = subprocess.check_output([
             "ffmpeg", "-v", "error", "-i", str(self.output),
             "-ac", "1", "-ar", "44100", "-f", "f32le", "pipe:1",
         ])
         samples = array.array("f")
         samples.frombytes(decoded)
+        print(
+            f"loop duration: ffprobe={probe['format']['duration']} s, "
+            f"decoded={len(samples) / 44100:.3f} s",
+            file=sys.stderr,
+        )
+        self.assertAlmostEqual(4.5, len(samples) / 44100, delta=0.03)
+        self.assertAlmostEqual(4.5, float(probe["format"]["duration"]), delta=0.03)
         self.assertGreater(max(abs(x) for x in samples[:4410]), 0.15)
         self.assertLess(abs(samples[0] - samples[-1]), 0.08)
 
