@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "tool": "tools/prepare_ios_audio.py",
+  "records": [
+    {
+      "sourcePath": "app/src/main/assets/local-sounds/rain-01.ogg",
+      "sourceSha256": "b1cace1e59c4248e0e21686543e100aa611a9f8f3875c47757d67fddd90c9cc9",
+      "outputPath": "ios/MinimalSleep/Resources/rain-01.wav",
+      "outputSha256": "bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269",
+      "author": "Resker666",
+      "license": "CC-BY-4.0",
+      "sourceModification": "Input was already loop-edited. This step only decodes Ogg Vorbis to PCM WAV; it does not trim, crossfade, filter, change gain, change channels, or resample.",
+      "encoding": {
+        "container": "WAV",
+        "codec": "pcm_s16le",
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "bitsPerSample": 16,
+        "frames": 13141800
+      },
+      "workingDirectory": "repository root",
+      "command": [
+        "ffmpeg",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-xerror",
+        "-i",
+        "app/src/main/assets/local-sounds/rain-01.ogg",
+        "-map_metadata",
+        "-1",
+        "-vn",
+        "-c:a",
+        "pcm_s16le",
+        "-f",
+        "wav",
+        "ios/MinimalSleep/Resources/.rain-01.transcoding.wav"
+      ]
+    },
+    {
+      "sourcePath": "app/src/main/assets/local-sounds/rain-04.ogg",
+      "sourceSha256": "888fc1071e05dee973487b93a35b6cbecfbfe61fd0342e53f115a945ede9a61e",
+      "outputPath": "ios/MinimalSleep/Resources/rain-04.wav",
+      "outputSha256": "3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc",
+      "author": "Resker666",
+      "license": "CC-BY-4.0",
+      "sourceModification": "Input was already loop-edited. This step only decodes Ogg Vorbis to PCM WAV; it does not trim, crossfade, filter, change gain, change channels, or resample.",
+      "encoding": {
+        "container": "WAV",
+        "codec": "pcm_s16le",
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "bitsPerSample": 16,
+        "frames": 13141800
+      },
+      "workingDirectory": "repository root",
+      "command": [
+        "ffmpeg",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-xerror",
+        "-i",
+        "app/src/main/assets/local-sounds/rain-04.ogg",
+        "-map_metadata",
+        "-1",
+        "-vn",
+        "-c:a",
+        "pcm_s16le",
+        "-f",
+        "wav",
+        "ios/MinimalSleep/Resources/.rain-04.transcoding.wav"
+      ]
+    }
+  ]
+}

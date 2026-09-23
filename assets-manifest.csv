@@ -4,3 +4,8 @@ app/src/main/res/raw/heavy_rain.wav,minimal-sleep contributors,tools/generate_na
 app/src/main/res/raw/ocean_waves.wav,minimal-sleep contributors,tools/generate_nature.py,Apache-2.0,b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa
 app/src/main/assets/local-sounds/rain-01.ogg,Resker666,Resker666 original rain recording edited with tools/prepare_loop.py,CC-BY-4.0,b1cace1e59c4248e0e21686543e100aa611a9f8f3875c47757d67fddd90c9cc9
 app/src/main/assets/local-sounds/rain-04.ogg,Resker666,Resker666 original rain recording edited with tools/prepare_loop.py,CC-BY-4.0,888fc1071e05dee973487b93a35b6cbecfbfe61fd0342e53f115a945ede9a61e
+ios/MinimalSleep/Resources/white_noise.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/white_noise.wav,Apache-2.0,bbc0563b65641da92ef3143def417bb7aa22f3d3d383e1235af3496c7681e3e0
+ios/MinimalSleep/Resources/heavy_rain.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/heavy_rain.wav,Apache-2.0,13104bdce5e7f7f4cfcada32f34a205f321d1247f53fe80be737c04aa06675fa
+ios/MinimalSleep/Resources/ocean_waves.wav,minimal-sleep contributors,byte-identical copy of app/src/main/res/raw/ocean_waves.wav,Apache-2.0,b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa
+ios/MinimalSleep/Resources/rain-01.wav,Resker666,app/src/main/assets/local-sounds/rain-01.ogg transcoded without trimming or resampling by tools/prepare_ios_audio.py,CC-BY-4.0,bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269
+ios/MinimalSleep/Resources/rain-04.wav,Resker666,app/src/main/assets/local-sounds/rain-04.ogg transcoded without trimming or resampling by tools/prepare_ios_audio.py,CC-BY-4.0,3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc
