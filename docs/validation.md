@@ -130,4 +130,4 @@
 - 本机 Xcode 27.0 基线执行 `xcodebuild ... CODE_SIGNING_ALLOWED=NO test` 退出码 0，结果为 **31 个测试、0 失败**，末尾为 `** TEST SUCCEEDED **`。
 - 本机执行与工作流等价的无签名 Release 模拟器构建，退出码 0，末尾为 `** BUILD SUCCEEDED **`。`MinimalSleep.app` 主可执行文件存在且非空；最终提交前重新从全新构建目录用 `ditto` 打包，临时 ZIP 的 SHA-256 为 `1aefabcf371e3a110fc7984691984e1d3ad4aaad17050b8bc1ec5c74a78c1084`。临时包位于 `/tmp`，不进入 Git。
 - Ruby 标准库成功解析工作流 YAML 并识别 8 个步骤；静态检查确认 macOS 26、禁用签名、Artifact 上传、14 天保留和 SHA-256 步骤存在，且工作流文本没有 `DEVELOPMENT_TEAM` 或开发证书信息。本机缺少 PyYAML，因此没有安装额外依赖。
-- 本机验证使用 Xcode 27.0；GitHub `macos-26` 当前默认 Xcode 版本仍需以首次云端运行结果为准。云端完成前不把 Artifact 上传或 macOS 26 兼容性列为已验证。
+- 首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35852288923) 状态 **Success**，总耗时约 8 分钟。环境检查、动态模拟器选择、XCTest、无签名 Release 构建、打包校验、上传和下载链接步骤全部为 `success`。页面生成 1 个产物 `minimal-sleep-ios-simulator-1`，大小 98,676,086 字节，GitHub Artifact 摘要为 `sha256:81c6f25f02252560000a7852b480c4cf494d3a899c64f51730a25d44b1f7c957`，到期时间为 2026-10-07 19:11（UTC+8）。此摘要对应 GitHub 外层 Artifact ZIP；尚未登录下载并独立解压核对其中的 App ZIP 与内部 SHA-256 文件。
