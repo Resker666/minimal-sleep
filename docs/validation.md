@@ -123,3 +123,11 @@
 - 修复后的开发分支云端运行 [#5](https://github.com/Resker666/minimal-sleep/actions/runs/35673768789) 状态 **Success**，总耗时 4 分 45 秒，页面显示 1 个产物 `minimal-sleep-debug-5`（53.2 MB，GitHub 显示的**产物 ZIP** 摘要 `sha256:a371b2929ef0f53351eb3071e7c7a0861ff1c552b412b27673c5a38cc5ff3a65`）。运行已经过 Python 测试、Gradle Lint/单元测试/构建、APK 签名校验和上传步骤。未登录的访问无法下载 ZIP，因此本机尚未独立解压并核对其中 APK；已确认 GitHub 页面显示可下载产物。下载需要登录 GitHub 并有仓库读取权限。
 - 合入主干后的云端运行 [#8](https://github.com/Resker666/minimal-sleep/actions/runs/35730491051) 状态 **Success**，总耗时 4 分 25 秒，页面显示 1 个产物 `minimal-sleep-debug-8`（53.2 MB，**产物 ZIP** 摘要 `sha256:95599ee7a07c3dc99ab07b07da2403d6b5f468582c116aaa5efaa5991d044988`）。这验证主干也完成整条工作流；ZIP 内 APK 和 SHA-256 文件仍未在本机独立下载核对。
 - 云端调试签名不能假设与当前手机 APK 一致；固定签名按用户要求留待以后。工作流只上传构建的 APK 与校验文件，没有上传手机录音。
+
+## 2026-09-23 iOS GitHub Actions 第一阶段
+
+- 新增 `.github/workflows/ios-build.yml`：`main`、`codex/**` 推送、相关 Pull Request 和手动触发可运行。工作流只授予 `contents: read`，动态选取可用 iPhone 模拟器，执行 XCTest，并以禁用代码签名的 Release 配置生成 `MinimalSleep-iOS-Simulator.zip` 与 SHA-256 文件；产物保留 14 天。没有写入 Apple ID、Personal Team、证书、描述文件或 Team ID。
+- 本机 Xcode 27.0 基线执行 `xcodebuild ... CODE_SIGNING_ALLOWED=NO test` 退出码 0，结果为 **31 个测试、0 失败**，末尾为 `** TEST SUCCEEDED **`。
+- 本机执行与工作流等价的无签名 Release 模拟器构建，退出码 0，末尾为 `** BUILD SUCCEEDED **`。`MinimalSleep.app` 主可执行文件存在且非空；最终提交前重新从全新构建目录用 `ditto` 打包，临时 ZIP 的 SHA-256 为 `1aefabcf371e3a110fc7984691984e1d3ad4aaad17050b8bc1ec5c74a78c1084`。临时包位于 `/tmp`，不进入 Git。
+- Ruby 标准库成功解析工作流 YAML 并识别 8 个步骤；静态检查确认 macOS 26、禁用签名、Artifact 上传、14 天保留和 SHA-256 步骤存在，且工作流文本没有 `DEVELOPMENT_TEAM` 或开发证书信息。本机缺少 PyYAML，因此没有安装额外依赖。
+- 本机验证使用 Xcode 27.0；GitHub `macos-26` 当前默认 Xcode 版本仍需以首次云端运行结果为准。云端完成前不把 Artifact 上传或 macOS 26 兼容性列为已验证。

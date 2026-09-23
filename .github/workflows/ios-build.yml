@@ -1,0 +1,124 @@
+name: iOS Simulator App
+
+on:
+  push:
+    branches:
+      - main
+      - 'codex/**'
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-simulator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Show Xcode environment
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available
+
+      - name: Select an available iPhone simulator
+        run: |
+          simulator_udid="$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          devices = json.loads(
+              subprocess.check_output(
+                  ["xcrun", "simctl", "list", "devices", "available", "-j"],
+                  text=True,
+              )
+          )["devices"]
+
+          for runtime in sorted(devices, reverse=True):
+              for device in devices[runtime]:
+                  if device["name"].startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit(0)
+
+          raise SystemExit("No available iPhone simulator was found")
+          PY
+          )"
+          echo "IOS_SIMULATOR_UDID=$simulator_udid" >> "$GITHUB_ENV"
+          echo "Using iPhone simulator $simulator_udid"
+
+      - name: Run iOS tests
+        run: |
+          set +e
+          xcodebuild \
+            -project ios/MinimalSleep.xcodeproj \
+            -scheme MinimalSleep \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/ios-tests" \
+            CODE_SIGNING_ALLOWED=NO \
+            test > ios-tests.log 2>&1
+          result=$?
+          cat ios-tests.log
+          if [ "$result" -ne 0 ]; then
+            {
+              echo '### iOS tests failed (last 100 log lines)'
+              echo '```text'
+              tail -n 100 ios-tests.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$result"
+
+      - name: Build unsigned simulator app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/MinimalSleep.xcodeproj \
+            -scheme MinimalSleep \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/ios-release" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tee ios-release-build.log
+
+      - name: Verify and package simulator app
+        run: |
+          app="$RUNNER_TEMP/ios-release/Build/Products/Release-iphonesimulator/MinimalSleep.app"
+          test -d "$app"
+          test -s "$app/MinimalSleep"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent "$app" dist/MinimalSleep-iOS-Simulator.zip
+          shasum -a 256 dist/MinimalSleep-iOS-Simulator.zip > dist/MinimalSleep-iOS-Simulator.zip.sha256
+          cat dist/MinimalSleep-iOS-Simulator.zip.sha256
+
+      - name: Upload simulator app
+        id: ios_app
+        uses: actions/upload-artifact@v7
+        with:
+          name: minimal-sleep-ios-simulator-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Show download link
+        run: |
+          echo "[Download iOS simulator artifact](${{ steps.ios_app.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo 'The artifact contains an unsigned simulator app ZIP and its SHA-256 file.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'It runs only in an iOS Simulator and cannot be installed on an iPhone.' >> "$GITHUB_STEP_SUMMARY"

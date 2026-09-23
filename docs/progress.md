@@ -24,3 +24,5 @@
 2026-09-22 构建流水线：新增 `.github/workflows/android-apk.yml`，在 `main` 与 `codex/**` 推送时运行 Python 音频工具测试、Android Lint、JVM 单元测试并构建调试 APK，成功后上传 APK 和 SHA-256 文件为 14 天的 Actions 产物。开发分支首次成功运行见 [#5](https://github.com/Resker666/minimal-sleep/actions/runs/35673768789)；合入主干后的成功运行见 [#8](https://github.com/Resker666/minimal-sleep/actions/runs/35730491051)。工作流不发布 GitHub Release。
 
 待做：设计并配置受保护的**固定签名密钥**，使将来的云端 APK 可以覆盖安装已用同一密钥签名的版本。先核对当前手机 APK 的签名证书、决定是否迁移，以及密钥备份和 GitHub Secrets 管理方案；本轮不设置任何签名密钥，也不声称云端调试 APK 能覆盖当前手机版本。卸载当前 App 会删除私有录音和导入音频，迁移前需设计用户主动导出或备份路径。
+
+2026-09-23 iOS CI 第一阶段：新增 `.github/workflows/ios-build.yml`，在 `main`、`codex/**` 及相关 Pull Request 的 iOS 文件变更时使用 GitHub `macos-26` runner。工作流动态选择可用 iPhone 模拟器，运行 XCTest，随后以 `CODE_SIGNING_ALLOWED=NO` 构建 Release 模拟器 App，使用 `ditto` 打包并生成 SHA-256，成功后上传 14 天的 Actions 产物。工作流不包含 Apple ID、Personal Team、证书或 Team ID；产物只能在 iOS 模拟器中运行，不能安装到 iPhone。正式 IPA/TestFlight 和 Android 固定发布签名均留到第二阶段。
