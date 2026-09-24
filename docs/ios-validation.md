@@ -13,6 +13,9 @@
 | 隐私与源码 | `git ls-files`、项目签名设置 diff、忽略文件检查 | 没有跟踪夜间录音、`.wav.part` 或 Personal Team 字段；两段生成 M4A 被忽略 |
 | Android 版本 | `app/build.gradle.kts` | 仍为 `versionCode 5`、`versionName "0.4.0-dev"` |
 | 真机可用性 | `xcrun devicectl list devices` | CoreDeviceService 初始化超时；未安装、未录音 |
+| iOS GitHub Actions | [iOS Simulator App #11](https://github.com/Resker666/minimal-sleep/actions/runs/36015988792)，提交 `ac34f0d6f9d4` | 工作流与 build job 均成功；iOS tests、Release build、包资源检查、Artifact 上传步骤成功。公开运行中日志不可读，云端测试数量未单独确认 |
+| iOS 云端 Artifact | `minimal-sleep-ios-simulator-11` | GitHub API 大小 17,838,226 字节；摘要 `sha256:4e1d066e845f15b99d5fdb0637867cc39b6091e8aab51ef0fb816a69081363f7`；到期 2026-10-08 14:59:14 UTC；仅供模拟器使用 |
+| Android GitHub Actions | [Android APK #29](https://github.com/Resker666/minimal-sleep/actions/runs/36015988618)，提交 `ac34f0d6f9d4` | 工作流成功；Artifact `minimal-sleep-debug-29`，55,822,073 字节；本轮未下载 APK 或安装 Android 真机 |
 
 新增自动测试覆盖能量触发、前后缓冲、60 秒分片、WAV 格式、存储故障回滚与恢复、播放区间定期保存、音频会话切换、中断停止、录音权限、记录列表、回听切换与删除。存储故障、播放区间和回听切换检查先出现预期失败，修复后定向测试均以退出码 0 通过。本机日志保存在 `/private/tmp/minimal-sleep-recording-final-python.log`、`/private/tmp/minimal-sleep-recording-final-tests-serial.log` 和 `/private/tmp/minimal-sleep-recording-final-release.log`，均不进入 Git。提交前一次完整 90 项 XCTest 曾以退出码 0 完成；增加回听切换测试后的两次 91 项运行只有用例结论，等待 CI 独立验证整个命令。
 

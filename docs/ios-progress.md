@@ -6,6 +6,7 @@
 - 助眠声与录音共享音频会话；播放重叠片段标记为“可能受影响”。音频中断或耳机等输出设备断开会停止录音，不自动恢复。没有加入回声消除或声音分类。
 - 本地 iPhone 18 Pro / iOS 27.0 模拟器上 91 个 XCTest 通过，未签名 Release 模拟器构建成功；App 包中的版本、麦克风用途说明、后台 audio 和两段 M4A 加三段小型 WAV 已检查。自动测试覆盖状态、切片、文件事务和恢复，但不能证明真机麦克风或锁屏录音。
 - 真机安装与覆盖安装、麦克风授权允许/拒绝、仅录音、播放加录音、锁屏 30 分钟、音频中断/路由变化、回听/删除、8 小时整夜和实际听感均**未测**。本次 `devicectl list devices` 在 CoreDeviceService 初始化时超时。
+- 提交 `ac34f0d6f9d4` 的 [iOS CI #11](https://github.com/Resker666/minimal-sleep/actions/runs/36015988792) 与 [Android CI #29](https://github.com/Resker666/minimal-sleep/actions/runs/36015988618) 均成功。iOS 模拟器 Artifact 为 `minimal-sleep-ios-simulator-11`，17,838,226 字节；它不是可装到 iPhone 的 IPA。
 - 下一步先连接、解锁并信任 iPhone，以同一 Bundle ID 和 Personal Team 覆盖安装，再做短录音与既有导入音频保留检查；之后分别验证锁屏 30 分钟和整夜可靠性。录音仍只留在手机 App 私有目录，不导入 Git 或上传。
 
 ## 当前状态（2026-09-24）
