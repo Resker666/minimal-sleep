@@ -30,3 +30,7 @@ xcuserdata/
 *.ipa
 __pycache__/
 *.pyc
+
+# Generated large iOS audio 
+ios/MinimalSleep/Resources/rain-01.wav 
+ios/MinimalSleep/Resources/rain-04.wav
