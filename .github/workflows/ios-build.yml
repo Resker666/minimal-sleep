@@ -48,8 +48,18 @@ jobs:
 
       - name: Install FFmpeg
         run: |
-          brew install ffmpeg
-          ffmpeg -version | head -n 1
+          set -euo pipefail
+          brew update
+          if brew list --versions ffmpeg >/dev/null; then
+            brew upgrade ffmpeg
+          else
+            brew install ffmpeg
+          fi
+
+          expected_ffmpeg_version='9.0.2'
+          actual_ffmpeg_version="$(ffmpeg -version | awk 'NR == 1 { print $3 }')"
+          echo "Using FFmpeg $actual_ffmpeg_version"
+          test "$actual_ffmpeg_version" = "$expected_ffmpeg_version"
 
       - name: Show Xcode environment
         run: |
