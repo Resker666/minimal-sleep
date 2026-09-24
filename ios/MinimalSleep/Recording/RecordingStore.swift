@@ -55,6 +55,30 @@ protocol RecordingFileSystem: Sendable {
     func availableCapacity() throws -> Int64
 }
 
+protocol RecordingStoring: Sendable {
+    func startSession(id: UUID, at: Date, timeZoneIdentifier: String) async throws -> RecordingSession
+    func appendSegment(
+        _ segment: RecordingAudioSegment,
+        to sessionID: UUID,
+        playbackAffected: Bool,
+        createdAt: Date
+    ) async throws -> RecordingEvent
+    func replacePlaybackIntervals(
+        _ intervals: [RecordingPlaybackInterval],
+        capturedSamples: Int64,
+        for sessionID: UUID
+    ) async throws
+    func finishSession(
+        id: UUID,
+        at date: Date,
+        status: RecordingSessionStatus,
+        reason: String?,
+        capturedSamples: Int64,
+        playbackIntervals: [RecordingPlaybackInterval]
+    ) async throws
+    func deleteSession(id: UUID) async throws
+}
+
 actor RecordingStore {
     private let fileSystem: RecordingFileSystem
     private let makeID: @Sendable () -> UUID
@@ -284,10 +308,12 @@ actor RecordingStore {
     }
 }
 
+extension RecordingStore: RecordingStoring { }
+
 struct FileManagerRecordingFileSystem: RecordingFileSystem {
     private let rootURL: URL
     private let writer: PCM16WAVWriting
-    private let files = FileManager.default
+    private var files: FileManager { .default }
 
     static func applicationSupport() throws -> FileManagerRecordingFileSystem {
         let applicationSupport = FileManager.default.urls(

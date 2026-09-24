@@ -143,3 +143,19 @@ final class AudioSessionController: NSObject, AudioSessionControlling {
         }
     }
 }
+
+@MainActor
+enum AudioSafetyBridge {
+    static func connect(
+        session: AudioSessionControlling,
+        playback: AudioCoordinator,
+        recording: NightRecordingCoordinator
+    ) {
+        session.onSafetyEvent = { [weak playback, weak recording] event in
+            playback?.handleInterruptionOrUnsafeRouteChange()
+            Task { @MainActor in
+                await recording?.handleSafetyEvent(event)
+            }
+        }
+    }
+}
