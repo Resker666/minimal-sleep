@@ -34,6 +34,24 @@ final class RecordingStoreTests: XCTestCase {
         XCTAssertEqual(index.sessions.map(\.id), [id])
     }
 
+    func testFailedSessionStartDoesNotLeaveDirectoryThatBlocksRecovery() async throws {
+        let files = try FileManagerRecordingFileSystem(rootURL: directory)
+        let failing = FaultInjectingRecordingFileSystem(base: files)
+        failing.failAfterNextSessionSave = true
+        let store = RecordingStore(fileSystem: failing)
+        let id = UUID()
+
+        do {
+            _ = try await store.startSession(id: id, at: Date(), timeZoneIdentifier: "UTC")
+            XCTFail("The injected write failure should surface")
+        } catch { }
+
+        XCTAssertTrue(try files.sessionIDs().isEmpty)
+        let recovered = RecordingStore(fileSystem: files)
+        let sessions = try await recovered.sessions()
+        XCTAssertTrue(sessions.isEmpty)
+    }
+
     func testSessionSaveFailureRollsBackPublishedWAVAndDoesNotExposeEvent() async throws {
         let files = try FileManagerRecordingFileSystem(rootURL: directory)
         let failing = FaultInjectingRecordingFileSystem(base: files)
@@ -334,6 +352,7 @@ private final class FaultInjectingRecordingFileSystem: RecordingFileSystem, @unc
 
     let base: RecordingFileSystem
     var failNext: Operation?
+    var failAfterNextSessionSave = false
     var totalBytesOverride: Int64?
     var availableBytesOverride: Int64?
 
@@ -353,6 +372,10 @@ private final class FaultInjectingRecordingFileSystem: RecordingFileSystem, @unc
     func saveSession(id: UUID, data: Data) throws {
         try check(.saveSession)
         try base.saveSession(id: id, data: data)
+        if failAfterNextSessionSave {
+            failAfterNextSessionSave = false
+            throw InjectedFailure.expected
+        }
     }
     func publishWAV(sessionID: UUID, eventID: UUID, samples: [Int16], sampleRate: Int) throws -> String {
         try base.publishWAV(sessionID: sessionID, eventID: eventID, samples: samples, sampleRate: sampleRate)

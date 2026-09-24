@@ -8,6 +8,7 @@ enum RecordingPipelineError: LocalizedError {
 
 actor RecordingPipeline {
     private struct OpenPlaybackInterval {
+        let id: UUID
         let soundID: String
         let appVolume: Float
         let startSample: Int64
@@ -21,6 +22,7 @@ actor RecordingPipeline {
     private var segmenter: EventSegmenter
     private var sampleCursor: Int64 = 0
     private var lastProgressSample: Int64 = 0
+    private var lastCheckpointSample: Int64 = 0
     private var eventCount = 0
     private var intervals: [RecordingPlaybackInterval] = []
     private var openPlayback: OpenPlaybackInterval?
@@ -57,6 +59,9 @@ actor RecordingPipeline {
         sampleCursor += Int64(samples.count)
         for segment in segments {
             try await save(segment)
+        }
+        if sampleCursor - lastCheckpointSample >= Int64(sampleRate) * 60 {
+            try await checkpoint()
         }
         if sampleCursor - lastProgressSample >= Int64(sampleRate) {
             lastProgressSample = sampleCursor
@@ -102,6 +107,7 @@ actor RecordingPipeline {
         closePlayback(at: sampleCursor)
         if snapshot.isPlaying {
             openPlayback = OpenPlaybackInterval(
+                id: UUID(),
                 soundID: snapshot.soundID,
                 appVolume: snapshot.appVolume,
                 startSample: sampleCursor
@@ -113,7 +119,7 @@ actor RecordingPipeline {
         guard let openPlayback else { return }
         if endSample > openPlayback.startSample {
             intervals.append(RecordingPlaybackInterval(
-                id: UUID(),
+                id: openPlayback.id,
                 sessionID: sessionID,
                 soundID: openPlayback.soundID,
                 appVolume: openPlayback.appVolume,
@@ -139,11 +145,35 @@ actor RecordingPipeline {
                 playbackAffected: overlapsClosed || overlapsOpen,
                 createdAt: Date()
             )
+            try await checkpoint()
         } catch {
             failed = true
             throw error
         }
         eventCount += 1
         onProgress(sampleCursor, eventCount)
+    }
+
+    private func checkpoint() async throws {
+        var currentIntervals = intervals
+        if let openPlayback, sampleCursor > openPlayback.startSample {
+            currentIntervals.append(RecordingPlaybackInterval(
+                id: openPlayback.id,
+                sessionID: sessionID,
+                soundID: openPlayback.soundID,
+                appVolume: openPlayback.appVolume,
+                startSample: openPlayback.startSample,
+                endSample: sampleCursor
+            ))
+        }
+        do {
+            try await store.replacePlaybackIntervals(
+                currentIntervals, capturedSamples: sampleCursor, for: sessionID
+            )
+            lastCheckpointSample = sampleCursor
+        } catch {
+            failed = true
+            throw error
+        }
     }
 }

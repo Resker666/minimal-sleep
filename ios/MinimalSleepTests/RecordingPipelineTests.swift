@@ -47,6 +47,33 @@ final class RecordingPipelineTests: XCTestCase {
         XCTAssertEqual(sampleCount, 10)
     }
 
+    func testSavedSegmentCheckpointsOpenPlaybackIntervalBeforeFinish() async throws {
+        let store = FakeRecordingStoring()
+        let pipeline = RecordingPipeline(
+            sessionID: UUID(), store: store, sampleRate: 10, maxSeconds: 1
+        )
+
+        try await pipeline.consume(loud(10), playback: snapshot(true))
+
+        let checkpoints = await store.checkpoints
+        XCTAssertEqual(checkpoints.count, 1)
+        XCTAssertEqual(checkpoints.first?.samples, 10)
+        XCTAssertEqual(checkpoints.first?.intervals.map(\.startSample), [0])
+        XCTAssertEqual(checkpoints.first?.intervals.map(\.endSample), [10])
+    }
+
+    func testLongQuietRecordingCheckpointsSamplesWithoutSavedClips() async throws {
+        let store = FakeRecordingStoring()
+        let pipeline = RecordingPipeline(sessionID: UUID(), store: store, sampleRate: 10)
+
+        try await pipeline.consume(quiet(600), playback: snapshot(false))
+
+        let checkpoints = await store.checkpoints
+        XCTAssertEqual(checkpoints.count, 1)
+        XCTAssertEqual(checkpoints.first?.samples, 600)
+        XCTAssertEqual(checkpoints.first?.intervals.count, 0)
+    }
+
     func testStoreFailureStopsFurtherConsumption() async throws {
         let store = FakeRecordingStoring()
         await store.failAppend()
@@ -80,6 +107,7 @@ private actor FakeRecordingStoring: RecordingStoring {
     private(set) var events: [SavedEvent] = []
     private(set) var finalIntervals: [RecordingPlaybackInterval] = []
     private(set) var finalCapturedSamples: Int64 = 0
+    private(set) var checkpoints: [(samples: Int64, intervals: [RecordingPlaybackInterval])] = []
     private(set) var appendAttempts = 0
     private var shouldFailAppend = false
 
@@ -105,7 +133,7 @@ private actor FakeRecordingStoring: RecordingStoring {
 
     func replacePlaybackIntervals(
         _ intervals: [RecordingPlaybackInterval], capturedSamples: Int64, for sessionID: UUID
-    ) throws { }
+    ) throws { checkpoints.append((capturedSamples, intervals)) }
 
     func finishSession(
         id: UUID, at date: Date, status: RecordingSessionStatus, reason: String?,

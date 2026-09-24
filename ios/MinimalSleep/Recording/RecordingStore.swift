@@ -105,7 +105,14 @@ actor RecordingStore {
         try checkCapacity(adding: 0)
         guard cachedSessions?[id] == nil else { throw RecordingStoreError.duplicateSession }
         let session = RecordingSession(id: id, startedAt: at, timeZoneIdentifier: timeZoneIdentifier)
-        try fileSystem.saveSession(id: id, data: JSONEncoder.recording.encode(session))
+        do {
+            try fileSystem.saveSession(id: id, data: JSONEncoder.recording.encode(session))
+        } catch {
+            // This ID has not been published in the index and cannot contain user audio.
+            // Remove a directory left by a partial metadata write before the next launch.
+            try? fileSystem.removeSessionDirectory(id: id)
+            throw error
+        }
         cachedSessions?[id] = session
         try saveIndex()
         return session
