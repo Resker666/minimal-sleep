@@ -12,6 +12,7 @@ on:
       - 'tools/prepare_ios_audio.py'
       - 'tools/test_prepare_ios_audio.py'
       - 'assets-manifest.csv'
+      - '.gitignore'
       - '.github/workflows/ios-build.yml'
   pull_request:
     paths:
@@ -21,6 +22,7 @@ on:
       - 'tools/prepare_ios_audio.py'
       - 'tools/test_prepare_ios_audio.py'
       - 'assets-manifest.csv'
+      - '.gitignore'
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
@@ -75,9 +77,28 @@ jobs:
             ios/MinimalSleep/Resources/rain-04.wav)"
           test -z "$tracked_generated"
 
-          git check-ignore -q --no-index ios/MinimalSleep/Resources/rain-01.wav
-          git check-ignore -q --no-index ios/MinimalSleep/Resources/rain-04.wav
-          git check-ignore -q --no-index ios/MinimalSleep/Resources/.rain-01.transcoding.wav
+          assert_ignored() {
+            git check-ignore -v --no-index "$1" |
+              awk -F '\t' '
+                BEGIN { found = 0 }
+                {
+                  found = 1
+                  if ($1 ~ /:!/) {
+                    exit 1
+                  }
+                }
+                END {
+                  if (!found) {
+                    exit 1
+                  }
+                }
+              '
+          }
+
+          assert_ignored ios/MinimalSleep/Resources/rain-01.wav
+          assert_ignored ios/MinimalSleep/Resources/rain-04.wav
+          assert_ignored ios/MinimalSleep/Resources/.rain-01.transcoding.wav
+          assert_ignored ios/MinimalSleep/Resources/.rain-04.transcoding.wav
 
           python -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
           python tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"
@@ -162,7 +183,11 @@ jobs:
           test -s "$app/white_noise.wav"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent "$app" dist/MinimalSleep-iOS-Simulator.zip
-          shasum -a 256 dist/MinimalSleep-iOS-Simulator.zip > dist/MinimalSleep-iOS-Simulator.zip.sha256
+          (
+            cd dist
+            shasum -a 256 MinimalSleep-iOS-Simulator.zip > MinimalSleep-iOS-Simulator.zip.sha256
+            shasum -a 256 -c MinimalSleep-iOS-Simulator.zip.sha256
+          )
           cat dist/MinimalSleep-iOS-Simulator.zip.sha256
 
       - name: Upload simulator app
