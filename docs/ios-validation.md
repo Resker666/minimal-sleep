@@ -1,5 +1,30 @@
 # iOS validation
 
+## 2026-09-24 本地生成与模拟器复验
+
+验证分支为 `codex/ios-reliability`，验证时提交为 `3e2e902ba59e`。环境为 macOS 27.0 (`26A428`)、Xcode 27.0 (`27A266a`)、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2，以及已启动的 iPhone 18 Pro / iOS 27.0 模拟器 `75FA9690-7229-4F85-96C1-284AD9262383`。
+
+| 检查 | 实际结果 | 状态 |
+|---|---|---|
+| `test_prepare_ios_audio.py` | 4 个测试通过，0 失败 | 通过 |
+| 由 Ogg 生成两个 PCM WAV | `rain-01.wav` 与 `rain-04.wav` 生成成功，均为 52,567,278 字节 | 通过 |
+| `rain-01.wav` SHA-256 | `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269` | 通过 |
+| `rain-04.wav` SHA-256 | `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc` | 通过 |
+| 派生清单 | `assets-manifest.csv` 与 `audio-derivations.json` 生成前后无 diff | 通过 |
+| Git 状态 | 两个生成 WAV 被忽略且未跟踪 | 通过 |
+| iOS XCTest | 31 个测试通过，0 失败；`** TEST SUCCEEDED **` | 通过 |
+| Release 模拟器构建 | 禁用签名构建成功；`** BUILD SUCCEEDED **` | 通过 |
+| App 包资源 | 主可执行文件及 `rain-01.wav`、`rain-04.wav`、`heavy_rain.wav`、`ocean_waves.wav`、`white_noise.wav` 均存在且非空 | 通过 |
+| 新版 GitHub Actions | 等待本分支推送后的实际运行 | 未测 |
+| iPhone 基础播放与锁屏控制 | 用户暂时不能配合真机 | 未测 |
+| 两次循环边界与真实 15 分钟淡出 | 需要人耳与真机观察 | 未测 |
+| 路由、中断、导入、覆盖安装、飞行模式 | 需要真机操作 | 未测 |
+| 8 小时整夜播放 | 需要真机长时测试 | 未测 |
+
+本次运行命令使用仓库文档中的生成命令，以及 `CODE_SIGNING_ALLOWED=NO` 的 Debug XCTest 和 Release 模拟器构建。结果包保存于 `/tmp/minimal-sleep-ios-reliability-tests.xcresult`，构建输出位于 `/tmp/minimal-sleep-ios-reliability-release`；二者均为本机临时证据，不进入 Git。模拟器和无签名构建不能证明真实扬声器听感、锁屏连续性、路由安全、耗电或整夜可靠性。
+
+## 2026-09-23 历史证据
+
 Updated: 2026-09-23. Automated evidence was collected on macOS 27.0 (`26A428`) with Xcode 27.0 (`27A266a`). The build commit field remains `未提交` because the Mac implementation is currently a reviewable working-tree change on `codex/ios-mvp` after merge commit `b37aba5`.
 
 | Test | Device / OS / Xcode | Build commit | Conditions | Actual result / evidence | Status |

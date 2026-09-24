@@ -1,6 +1,6 @@
 # 开发进度
 
-更新：2026-09-22。当前音频处理分支 `codex/loop-audio-previews` 从 `codex/continue-m3-m5` 建立；公开预发布仍是 `v0.2.0-preview.1`，本轮新包尚未公开发布。
+更新：2026-09-24。当前音频处理分支 `codex/loop-audio-previews` 从 `codex/continue-m3-m5` 建立；公开预发布仍是 `v0.2.0-preview.1`，本轮新包尚未公开发布。
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
@@ -26,3 +26,9 @@
 待做：设计并配置受保护的**固定签名密钥**，使将来的云端 APK 可以覆盖安装已用同一密钥签名的版本。先核对当前手机 APK 的签名证书、决定是否迁移，以及密钥备份和 GitHub Secrets 管理方案；本轮不设置任何签名密钥，也不声称云端调试 APK 能覆盖当前手机版本。卸载当前 App 会删除私有录音和导入音频，迁移前需设计用户主动导出或备份路径。
 
 2026-09-23 iOS CI 第一阶段：新增 `.github/workflows/ios-build.yml`，在 `main`、`codex/**` 及相关 Pull Request 的 iOS 文件变更时使用 GitHub `macos-26` runner。工作流动态选择可用 iPhone 模拟器，运行 XCTest，随后以 `CODE_SIGNING_ALLOWED=NO` 构建 Release 模拟器 App，使用 `ditto` 打包并生成 SHA-256，成功后上传 14 天的 Actions 产物。首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35852288923) 已成功，生成 `minimal-sleep-ios-simulator-1`。工作流不包含 Apple ID、Personal Team、证书或 Team ID；产物只能在 iOS 模拟器中运行，不能安装到 iPhone。正式 IPA/TestFlight 和 Android 固定发布签名均留到第二阶段。
+
+## 2026-09-24 iOS 生成音频与本机复验
+
+- Git 历史清理已经完成，后续不再重写。Android 继续直接使用已跟踪的 `rain-01.ogg` 和 `rain-04.ogg`；iOS 从同一组 Ogg 生成被忽略的 44.1 kHz、双声道、16-bit PCM WAV。仓库当前版本和可达历史不再保存两个约 52 MB 的派生 WAV。
+- `.gitignore` 保护两个最终 WAV 和转码临时文件；iOS CI 配置已加入生成、清单一致性与 App 包五资源检查。新的云端运行结果将在推送后另行记录。
+- 本机 4 个音频准备测试、31 个 iOS XCTest、未签名 Release 模拟器构建及 App 包五个声音检查均通过。真机可靠性项目仍未执行。

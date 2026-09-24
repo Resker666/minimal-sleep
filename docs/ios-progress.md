@@ -1,5 +1,16 @@
 # iOS progress
 
+## 当前状态（2026-09-24）
+
+- Git 历史中的 `ios/MinimalSleep/Resources/rain-01.wav` 和 `rain-04.wav` 已完成清理；后续不再重写仓库历史。fresh clone 只保留两个 Ogg 源文件，两个约 52 MB 的 PCM WAV 改为本地或 CI 构建前生成。
+- `.gitignore` 已明确排除两个最终 WAV 和 `.rain-*.transcoding.wav` 临时文件；三个小型 WAV 继续由 Git 跟踪。
+- iOS 工作流已加入 Python 3.12、FFmpeg、音频工具测试、生成、清单一致性检查，以及 App 包内五个声音的强制检查。此处只记录代码和本机验证；新的 GitHub Actions 运行结果尚待推送后确认。
+- 2026-09-24 在提交 `3e2e902ba59e` 上使用 macOS 27.0、Xcode 27.0、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2 与 iPhone 18 Pro / iOS 27.0 模拟器完成复验：4/4 Python 音频测试通过，两个生成 WAV 的 SHA-256 与派生清单一致，31/31 XCTest 通过，未签名 Release 模拟器 App 构建成功并包含五个非空 WAV。
+- 生成的 `rain-01.wav` 和 `rain-04.wav` 保持被忽略、未跟踪，Personal Team、证书、描述文件和用户数据均未进入本分支。
+- 真机基础播放、两段雨声各跨两次循环、锁屏 15 分钟淡出、30–60 分钟后台播放、耳机或蓝牙断开、音频中断、MP3/M4A/WAV 导入、覆盖安装、飞行模式和 8 小时整夜播放均为**未测**，等待用户可以配合真机时继续。
+
+## 2026-09-23 历史记录
+
 当前任务：首轮 iOS 可自用播放版，完成 Mac 上可自动执行的工程、实现、资源和验证工作。
 
 起始提交 / 当前分支：`4d8abbb` / `codex/ios-mvp`。开始实现前将本地 `main` 合入，合并提交为 `b37aba5`。

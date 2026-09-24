@@ -1,6 +1,6 @@
 # 验证记录
 
-初建：2026-09-20；更新：2026-09-22。所有结果均需注明命令、退出码和证据路径；未执行的项目不能记为通过。
+初建：2026-09-20；更新：2026-09-24。所有结果均需注明命令、退出码和证据路径；未执行的项目不能记为通过。
 
 ## 环境初检
 
@@ -131,3 +131,11 @@
 - 本机执行与工作流等价的无签名 Release 模拟器构建，退出码 0，末尾为 `** BUILD SUCCEEDED **`。`MinimalSleep.app` 主可执行文件存在且非空；最终提交前重新从全新构建目录用 `ditto` 打包，临时 ZIP 的 SHA-256 为 `1aefabcf371e3a110fc7984691984e1d3ad4aaad17050b8bc1ec5c74a78c1084`。临时包位于 `/tmp`，不进入 Git。
 - Ruby 标准库成功解析工作流 YAML 并识别 8 个步骤；静态检查确认 macOS 26、禁用签名、Artifact 上传、14 天保留和 SHA-256 步骤存在，且工作流文本没有 `DEVELOPMENT_TEAM` 或开发证书信息。本机缺少 PyYAML，因此没有安装额外依赖。
 - 首次开发分支云端运行 [#1](https://github.com/Resker666/minimal-sleep/actions/runs/35852288923) 状态 **Success**，总耗时约 8 分钟。环境检查、动态模拟器选择、XCTest、无签名 Release 构建、打包校验、上传和下载链接步骤全部为 `success`。页面生成 1 个产物 `minimal-sleep-ios-simulator-1`，大小 98,676,086 字节，GitHub Artifact 摘要为 `sha256:81c6f25f02252560000a7852b480c4cf494d3a899c64f51730a25d44b1f7c957`，到期时间为 2026-10-07 19:11（UTC+8）。此摘要对应 GitHub 外层 Artifact ZIP；尚未登录下载并独立解压核对其中的 App ZIP 与内部 SHA-256 文件。
+
+## 2026-09-24 iOS 生成音频本机验证
+
+- 环境：macOS 27.0 (`26A428`)、Xcode 27.0 (`27A266a`)、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2、iPhone 18 Pro / iOS 27.0 模拟器 `75FA9690-7229-4F85-96C1-284AD9262383`；验证时提交 `3e2e902ba59e`。
+- `python3 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v` 退出码 0，4 个测试通过。
+- `python3 tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"` 退出码 0；`rain-01.wav` 与 `rain-04.wav` 的 SHA-256 分别为 `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269` 和 `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc`。两个文件被 Git 忽略且未跟踪，两个派生清单无 diff。
+- iPhone 18 Pro 模拟器 Debug XCTest 退出码 0：31 个测试、0 失败，末尾 `** TEST SUCCEEDED **`。禁用签名的 Release 模拟器构建退出码 0，末尾 `** BUILD SUCCEEDED **`；App 主可执行文件和五个 WAV 均存在且非空。
+- 本节没有记录新的 GitHub Actions 通过，也没有记录真机通过。真机发声、循环听感、锁屏定时、后台持续播放、路由中断、导入、数据保留、飞行模式与 8 小时整夜播放均为未测。

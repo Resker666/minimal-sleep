@@ -61,18 +61,27 @@ xcodebuild -project ios/MinimalSleep.xcodeproj \
 
 The test destination UUID is local evidence, not a portable command. On another Mac, use `xcrun simctl list devices available` and substitute an available iPhone simulator.
 
-## Audio resource regeneration
+## Audio preparation after a fresh clone
 
-The five WAV resources are committed, so normal app builds do not need Python or FFmpeg. To regenerate the two licensed rain derivatives from the existing Android Ogg files:
+Git tracks these three smaller iOS WAV resources directly:
+
+- `ios/MinimalSleep/Resources/heavy_rain.wav`
+- `ios/MinimalSleep/Resources/ocean_waves.wav`
+- `ios/MinimalSleep/Resources/white_noise.wav`
+
+The two 298-second rain PCM files are generated build inputs. Git tracks their shared Android/iOS Ogg sources at `app/src/main/assets/local-sounds/rain-01.ogg` and `rain-04.ogg`, while `.gitignore` excludes the generated `rain-01.wav`, `rain-04.wav`, and temporary `.rain-*.transcoding.wav` files.
+
+After a fresh clone, prepare the full iOS resources before running Xcode locally:
 
 ```bash
-/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py \
-  --ffmpeg /opt/homebrew/bin/ffmpeg
+brew install ffmpeg
+python3 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
+python3 tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"
 ```
 
-The script refuses to overwrite existing output. Remove generated derivatives only when intentionally regenerating them, then verify the resulting hashes against `ios/MinimalSleep/Resources/audio-derivations.json` and `assets-manifest.csv`.
+The script refuses to overwrite an existing output. To intentionally regenerate, delete only `ios/MinimalSleep/Resources/rain-01.wav` and `rain-04.wav`, rerun the commands, and verify that `assets-manifest.csv` and `ios/MinimalSleep/Resources/audio-derivations.json` have no unexpected diff. Do not add the generated WAV files to Git.
 
-Homebrew's regular FFmpeg 9.0.2 can decode Vorbis and write PCM, but it does not include the `libvorbis` encoder. The iOS preparation tests pass and iOS resource generation succeeds. Four older `prepare_loop` tests that create Ogg output fail in this local environment with `Unknown encoder 'libvorbis'`; this is a tool capability difference, not an iOS source failure.
+GitHub Actions performs the same preparation automatically, checks that the generated files remain untracked, and refuses to upload the simulator App unless all five built-in WAV resources are present. Local revalidation on 2026-09-24 used Apple Python 3.9.6 and Homebrew FFmpeg 9.0.2 successfully.
 
 ## Personal Team installation
 
