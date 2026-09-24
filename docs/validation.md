@@ -1,5 +1,9 @@
 # 验证记录
 
+## 2026-09-24 iOS 夜间声音片段录音
+
+iOS 分支 `codex/ios-night-recording` 在 Xcode 27.0 的 iPhone 18 Pro / iOS 27.0 模拟器运行完整 XCTest，退出码 0，90/90 通过；未签名 Release 模拟器构建退出码 0。音频准备工具 6/6 通过。Info.plist、打包资源、生成音频忽略规则与 Android 版本均已核对。`xcrun devicectl list devices` 因 CoreDeviceService 初始化超时退出码 1，所以真机安装、麦克风、锁屏和整夜录音均未测。命令与日志位置见 [iOS 验证记录](ios-validation.md)。
+
 初建：2026-09-20；更新：2026-09-24。所有结果均需注明命令、退出码和证据路径；未执行的项目不能记为通过。
 
 ## 环境初检

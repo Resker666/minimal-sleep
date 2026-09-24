@@ -1,5 +1,9 @@
 # 开发进度
 
+## 2026-09-24 iOS 夜间声音片段录音
+
+iOS 开发分支 `codex/ios-night-recording` 已实现 `0.5.0 (2)` 的本地声音触发录音、私有 WAV/JSON 记录、回听和删除；Android 源码与 `0.4.0-dev` / versionCode 5 未改。本地模拟器自动测试与构建通过，真机麦克风、锁屏、中断和整夜可靠性未测。详见 [iOS 进度](ios-progress.md) 与 [iOS 验证记录](ios-validation.md)。
+
 更新：2026-09-24。当前音频处理分支 `codex/loop-audio-previews` 从 `codex/continue-m3-m5` 建立；公开预发布仍是 `v0.2.0-preview.1`，本轮新包尚未公开发布。
 
 | 阶段 | 状态 | 说明 |
