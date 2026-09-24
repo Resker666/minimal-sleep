@@ -31,6 +31,7 @@ xcuserdata/
 __pycache__/
 *.pyc
 
-# Generated large iOS audio 
-ios/MinimalSleep/Resources/rain-01.wav 
-ios/MinimalSleep/Resources/rain-04.wav
+# Generated iOS audio. Rebuild with tools/prepare_ios_audio.py.
+/ios/MinimalSleep/Resources/rain-01.wav
+/ios/MinimalSleep/Resources/rain-04.wav
+/ios/MinimalSleep/Resources/.rain-*.transcoding.wav
