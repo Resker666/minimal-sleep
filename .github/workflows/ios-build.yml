@@ -7,10 +7,20 @@ on:
       - 'codex/**'
     paths:
       - 'ios/**'
+      - 'app/src/main/assets/local-sounds/rain-01.ogg'
+      - 'app/src/main/assets/local-sounds/rain-04.ogg'
+      - 'tools/prepare_ios_audio.py'
+      - 'tools/test_prepare_ios_audio.py'
+      - 'assets-manifest.csv'
       - '.github/workflows/ios-build.yml'
   pull_request:
     paths:
       - 'ios/**'
+      - 'app/src/main/assets/local-sounds/rain-01.ogg'
+      - 'app/src/main/assets/local-sounds/rain-04.ogg'
+      - 'tools/prepare_ios_audio.py'
+      - 'tools/test_prepare_ios_audio.py'
+      - 'assets-manifest.csv'
       - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
@@ -31,10 +41,43 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install FFmpeg
+        run: |
+          brew install ffmpeg
+          ffmpeg -version | head -n 1
+
       - name: Show Xcode environment
         run: |
           xcodebuild -version
           xcrun simctl list devices available
+
+      - name: Prepare generated iOS audio
+        run: |
+          set -euo pipefail
+
+          tracked_generated="$(git ls-files -- \
+            ios/MinimalSleep/Resources/rain-01.wav \
+            ios/MinimalSleep/Resources/rain-04.wav)"
+          test -z "$tracked_generated"
+
+          git check-ignore -q --no-index ios/MinimalSleep/Resources/rain-01.wav
+          git check-ignore -q --no-index ios/MinimalSleep/Resources/rain-04.wav
+          git check-ignore -q --no-index ios/MinimalSleep/Resources/.rain-01.transcoding.wav
+
+          python -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
+          python tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"
+
+          test -s ios/MinimalSleep/Resources/rain-01.wav
+          test -s ios/MinimalSleep/Resources/rain-04.wav
+
+          git diff --exit-code -- \
+            assets-manifest.csv \
+            ios/MinimalSleep/Resources/audio-derivations.json
 
       - name: Select an available iPhone simulator
         run: |
@@ -102,6 +145,11 @@ jobs:
           app="$RUNNER_TEMP/ios-release/Build/Products/Release-iphonesimulator/MinimalSleep.app"
           test -d "$app"
           test -s "$app/MinimalSleep"
+          test -s "$app/rain-01.wav"
+          test -s "$app/rain-04.wav"
+          test -s "$app/heavy_rain.wav"
+          test -s "$app/ocean_waves.wav"
+          test -s "$app/white_noise.wav"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent "$app" dist/MinimalSleep-iOS-Simulator.zip
           shasum -a 256 dist/MinimalSleep-iOS-Simulator.zip > dist/MinimalSleep-iOS-Simulator.zip.sha256
