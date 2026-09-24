@@ -139,3 +139,10 @@
 - `python3 tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"` 退出码 0；`rain-01.wav` 与 `rain-04.wav` 的 SHA-256 分别为 `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269` 和 `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc`。两个文件被 Git 忽略且未跟踪，两个派生清单无 diff。
 - iPhone 18 Pro 模拟器 Debug XCTest 退出码 0：31 个测试、0 失败，末尾 `** TEST SUCCEEDED **`。禁用签名的 Release 模拟器构建退出码 0，末尾 `** BUILD SUCCEEDED **`；App 主可执行文件和五个 WAV 均存在且非空。
 - 本节没有记录新的 GitHub Actions 通过，也没有记录真机通过。真机发声、循环听感、锁屏定时、后台持续播放、路由中断、导入、数据保留、飞行模式与 8 小时整夜播放均为未测。
+
+## 2026-09-24 iOS 生成音频云端验证
+
+- 首次 [iOS 运行 #6](https://github.com/Resker666/minimal-sleep/actions/runs/35958149518) 使用 Homebrew FFmpeg 9.0.1_1；音频测试和转码成功，但两个 PCM 哈希与本机 FFmpeg 9.0.2 的已审阅清单不同，严格清单 diff 按设计失败，后续 XCTest、构建和上传均未运行。
+- 提交 `a9d4c7e5089c` 在 `brew install` 前执行 `brew update`，并加入 FFmpeg 9.0.2 版本门禁。修复后的 [iOS 运行 #7](https://github.com/Resker666/minimal-sleep/actions/runs/35958729555) 状态 Success，总耗时 5 分 44 秒；Python 3.12、FFmpeg、音频生成与清单、模拟器 XCTest、无签名 Release 构建、五资源打包检查和 Artifact 上传均为 success。
+- Artifact `minimal-sleep-ios-simulator-7`：98,676,086 字节（GitHub 页面 94.1 MB），外层摘要 `sha256:90281f002c7e4f4bedef08fb837d2f369ded5f2bd358259114acfb9be0ce302d`。登录下载并自动解开外层 ZIP 后，内部 App ZIP 为 98,675,644 字节；实算 SHA-256 `6ffcce703d221ed8d17d87ca8eacae8391fbea8edc01f412d09317106aa33fb1`，与随包 `.sha256` 一致。
+- 云端产物仍是未签名 iOS Simulator App，不能安装到 iPhone；本节不代表任何真机项目通过。
