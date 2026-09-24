@@ -2,7 +2,7 @@
 
 ## 2026-09-24 iOS 夜间声音片段录音
 
-iOS 分支 `codex/ios-night-recording` 在 Xcode 27.0 的 iPhone 18 Pro / iOS 27.0 模拟器运行完整 XCTest，日志显示 91/91 用例通过；但 `xcodebuild` 两次在用例结束后卡住，发送 TERM 后退出码 143，尚不能报告完整命令成功。此前 90 项完整 XCTest 曾以退出码 0 完成。未签名 Release 模拟器构建退出码 0，音频准备工具 6/6 通过。Info.plist、打包资源、生成音频忽略规则与 Android 版本均已核对。`xcrun devicectl list devices` 因 CoreDeviceService 初始化超时退出码 1，所以真机安装、麦克风、锁屏和整夜录音均未测。命令与日志位置见 [iOS 验证记录](ios-validation.md)。
+iOS 分支 `codex/ios-night-recording` 在 Xcode 27.0 的 iPhone 18 Pro / iOS 27.0 模拟器运行完整 XCTest，日志显示 91/91 用例通过；但 `xcodebuild` 两次在用例结束后卡住，发送 TERM 后退出码 143，尚不能报告完整命令成功。此前 90 项完整 XCTest 曾以退出码 0 完成。未签名 Release 模拟器和通用 iPhone 构建均退出码 0，音频准备工具 6/6 通过。Info.plist、打包资源、生成音频忽略规则与 Android 版本均已核对。`xcrun devicectl list devices` 第一次因 CoreDeviceService 初始化超时退出码 1，第二次退出码 0，但 iPhone `朱颜辞镜花辞树` 为 `unavailable`，所以真机安装、麦克风、锁屏和整夜录音均未测。命令与日志位置见 [iOS 验证记录](ios-validation.md)。
 
 提交 `ac34f0d6f9d4` 的 [iOS CI #11](https://github.com/Resker666/minimal-sleep/actions/runs/36015988792) 和 [Android CI #29](https://github.com/Resker666/minimal-sleep/actions/runs/36015988618) 均成功。iOS 工作流的测试、Release 模拟器构建、资源检查及上传步骤全部成功；云端 Artifact 为 `minimal-sleep-ios-simulator-11`，17,838,226 字节。云端成功不替代真机录音验收。
 

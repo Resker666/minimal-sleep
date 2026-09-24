@@ -9,10 +9,11 @@
 | 音频准备工具 | `/opt/homebrew/bin/python3.12 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v` | 退出码 0；6/6 通过 |
 | 完整 iOS XCTest | `xcodebuild test -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' -parallel-testing-enabled NO -derivedDataPath /private/tmp/minimal-sleep-recording-final-tests-serial CODE_SIGNING_ALLOWED=NO` | 日志显示 91/91 用例通过、0 失败；`xcodebuild` 两次在用例结束后超过两分钟仍未退出，均发送 TERM 后退出码 143，因此本机没有完整命令退出码 0 |
 | Release 模拟器构建 | `xcodebuild build -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/minimal-sleep-recording-final-release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` | 退出码 0；`BUILD SUCCEEDED` |
+| 通用 iPhone 构建 | `xcodebuild build -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /private/tmp/minimal-sleep-recording-final-device CODE_SIGNING_ALLOWED=NO` | 退出码 0；`BUILD SUCCEEDED`。无签名，不可安装 |
 | App 包 | 检查 Release `MinimalSleep.app/Info.plist` 与资源文件 | `0.5.0 (2)`；麦克风用途说明和后台 `audio` 存在；两段雨声 M4A 与三段小 WAV 存在；旧的两个大 WAV 不存在 |
 | 隐私与源码 | `git ls-files`、项目签名设置 diff、忽略文件检查 | 没有跟踪夜间录音、`.wav.part` 或 Personal Team 字段；两段生成 M4A 被忽略 |
 | Android 版本 | `app/build.gradle.kts` | 仍为 `versionCode 5`、`versionName "0.4.0-dev"` |
-| 真机可用性 | `xcrun devicectl list devices` | CoreDeviceService 初始化超时；未安装、未录音 |
+| 真机可用性 | `xcrun devicectl list devices` | 首次 CoreDeviceService 初始化超时；再次查询退出码 0，`朱颜辞镜花辞树` 为 `unavailable`。未安装、未录音 |
 | iOS GitHub Actions | [iOS Simulator App #11](https://github.com/Resker666/minimal-sleep/actions/runs/36015988792)，提交 `ac34f0d6f9d4` | 工作流与 build job 均成功；iOS tests、Release build、包资源检查、Artifact 上传步骤成功。公开运行中日志不可读，云端测试数量未单独确认 |
 | iOS 云端 Artifact | `minimal-sleep-ios-simulator-11` | GitHub API 大小 17,838,226 字节；摘要 `sha256:4e1d066e845f15b99d5fdb0637867cc39b6091e8aab51ef0fb816a69081363f7`；到期 2026-10-08 14:59:14 UTC；仅供模拟器使用 |
 | Android GitHub Actions | [Android APK #29](https://github.com/Resker666/minimal-sleep/actions/runs/36015988618)，提交 `ac34f0d6f9d4` | 工作流成功；Artifact `minimal-sleep-debug-29`，55,822,073 字节；本轮未下载 APK 或安装 Android 真机 |
