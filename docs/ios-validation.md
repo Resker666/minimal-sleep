@@ -7,14 +7,14 @@
 | 检查 | 命令或证据 | 实际结果 |
 |---|---|---|
 | 音频准备工具 | `/opt/homebrew/bin/python3.12 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v` | 退出码 0；6/6 通过 |
-| 完整 iOS XCTest | `xcodebuild test -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' -parallel-testing-enabled NO -derivedDataPath /private/tmp/minimal-sleep-recording-final-tests CODE_SIGNING_ALLOWED=NO` | 退出码 0；90/90 通过，0 失败 |
+| 完整 iOS XCTest | `xcodebuild test -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' -parallel-testing-enabled NO -derivedDataPath /private/tmp/minimal-sleep-recording-final-tests-serial CODE_SIGNING_ALLOWED=NO` | 日志显示 91/91 用例通过、0 失败；`xcodebuild` 两次在用例结束后超过两分钟仍未退出，均发送 TERM 后退出码 143，因此本机没有完整命令退出码 0 |
 | Release 模拟器构建 | `xcodebuild build -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/minimal-sleep-recording-final-release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` | 退出码 0；`BUILD SUCCEEDED` |
 | App 包 | 检查 Release `MinimalSleep.app/Info.plist` 与资源文件 | `0.5.0 (2)`；麦克风用途说明和后台 `audio` 存在；两段雨声 M4A 与三段小 WAV 存在；旧的两个大 WAV 不存在 |
 | 隐私与源码 | `git ls-files`、项目签名设置 diff、忽略文件检查 | 没有跟踪夜间录音、`.wav.part` 或 Personal Team 字段；两段生成 M4A 被忽略 |
 | Android 版本 | `app/build.gradle.kts` | 仍为 `versionCode 5`、`versionName "0.4.0-dev"` |
 | 真机可用性 | `xcrun devicectl list devices` | CoreDeviceService 初始化超时；未安装、未录音 |
 
-新增自动测试覆盖能量触发、前后缓冲、60 秒分片、WAV 格式、存储故障回滚与恢复、播放区间定期保存、音频会话切换、中断停止、录音权限、记录列表与删除。存储故障和播放区间检查先出现预期失败，修复后全套测试通过。本机日志保存在 `/private/tmp/minimal-sleep-recording-final-python.log`、`/private/tmp/minimal-sleep-recording-final-tests.log` 和 `/private/tmp/minimal-sleep-recording-final-release.log`，均不进入 Git。
+新增自动测试覆盖能量触发、前后缓冲、60 秒分片、WAV 格式、存储故障回滚与恢复、播放区间定期保存、音频会话切换、中断停止、录音权限、记录列表、回听切换与删除。存储故障、播放区间和回听切换检查先出现预期失败，修复后定向测试均以退出码 0 通过。本机日志保存在 `/private/tmp/minimal-sleep-recording-final-python.log`、`/private/tmp/minimal-sleep-recording-final-tests-serial.log` 和 `/private/tmp/minimal-sleep-recording-final-release.log`，均不进入 Git。提交前一次完整 90 项 XCTest 曾以退出码 0 完成；增加回听切换测试后的两次 91 项运行只有用例结论，等待 CI 独立验证整个命令。
 
 **未测：** 真机麦克风授权允许/拒绝、实际采样与听感、助眠声干扰、锁屏 30 分钟、耳机断开/来电、回听/删除、覆盖安装保留私有数据、8 小时整夜可靠性。模拟器自动化不证明这些项目。录音文件未从手机读取或上传。
 

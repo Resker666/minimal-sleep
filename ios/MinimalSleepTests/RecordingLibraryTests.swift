@@ -32,6 +32,18 @@ final class RecordingLibraryTests: XCTestCase {
         XCTAssertEqual(fixture.session.playbackStates.last, false)
     }
 
+    func testResumingSleepSoundStopsClipWithoutDeactivatingPlaybackSession() async throws {
+        let fixture = try await Fixture(root: directory)
+        try await fixture.library.play(sessionID: fixture.sessionID, eventID: fixture.event.id)
+
+        fixture.audio.play(origin: .user)
+
+        XCTAssertEqual(fixture.audio.playbackState, .playing)
+        XCTAssertNil(fixture.library.playingEventID)
+        XCTAssertEqual(fixture.clip.stopCount, 1)
+        XCTAssertEqual(fixture.session.playbackStates.last, true)
+    }
+
     func testDeletingPlayingEventStopsPlayerBeforeStoreDelete() async throws {
         let fixture = try await Fixture(root: directory)
         let fileURL = try await fixture.store.eventFileURL(

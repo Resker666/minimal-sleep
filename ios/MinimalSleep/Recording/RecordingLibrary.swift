@@ -65,6 +65,7 @@ final class RecordingLibrary: ObservableObject {
     private let clipPlayer: RecordingClipPlaying
     private let isRecording: @MainActor () -> Bool
     private var playingSessionID: UUID?
+    private var sleepPlaybackObservation: AnyCancellable?
 
     init(
         store: RecordingStore?,
@@ -79,6 +80,12 @@ final class RecordingLibrary: ObservableObject {
         self.clipPlayer = clipPlayer ?? AVAudioPlayerRecordingClipPlayer()
         self.isRecording = isRecording
         self.clipPlayer.onFinished = { [weak self] in self?.stopPlayback() }
+        self.sleepPlaybackObservation = sleepAudio.$playbackState.sink { [weak self] state in
+            guard state == .playing else { return }
+            // Published state arrives before the property is updated. The sleep player
+            // has already activated the shared session, so keep it active here.
+            self?.stopPlayback(preserveSession: true)
+        }
     }
 
     func reload() async {
@@ -139,9 +146,13 @@ final class RecordingLibrary: ObservableObject {
     }
 
     func stopPlayback() {
+        stopPlayback(preserveSession: sleepAudio.isPlaying)
+    }
+
+    private func stopPlayback(preserveSession: Bool) {
         guard playingEventID != nil else { return }
         clipPlayer.stop()
-        try? audioSession.setPlaybackActive(false)
+        if !preserveSession { try? audioSession.setPlaybackActive(false) }
         playingEventID = nil
         playingSessionID = nil
     }
