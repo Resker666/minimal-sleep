@@ -15,19 +15,21 @@
 | iOS XCTest | 31 个测试通过，0 失败；`** TEST SUCCEEDED **` | 通过 |
 | Release 模拟器构建 | 禁用签名构建成功；`** BUILD SUCCEEDED **` | 通过 |
 | App 包资源 | 主可执行文件及 `rain-01.wav`、`rain-04.wav`、`heavy_rain.wav`、`ocean_waves.wav`、`white_noise.wav` 均存在且非空 | 通过 |
-| 新版 GitHub Actions | [运行 #7](https://github.com/Resker666/minimal-sleep/actions/runs/35958729555)，提交 `a9d4c7e5089c`，全部关键步骤成功，5 分 44 秒 | 通过 |
+| 新版 GitHub Actions | [运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403)，提交 `9f9e9a17bac4`，全部关键步骤成功，6 分 58 秒 | 通过 |
 | iPhone 基础播放与锁屏控制 | 用户暂时不能配合真机 | 未测 |
 | 两次循环边界与真实 15 分钟淡出 | 需要人耳与真机观察 | 未测 |
 | 路由、中断、导入、覆盖安装、飞行模式 | 需要真机操作 | 未测 |
 | 8 小时整夜播放 | 需要真机长时测试 | 未测 |
 
-### GitHub Actions 运行 #6 与 #7
+### GitHub Actions 运行 #6 至 #8
 
 - [运行 #6](https://github.com/Resker666/minimal-sleep/actions/runs/35958149518) 在提交 `4f1587ca3991` 上失败，总耗时 33 秒。Set up Python、Install FFmpeg 与环境检查成功；Prepare generated iOS audio 的 4 个测试和转码成功，但 runner 从旧 Homebrew 元数据安装了 FFmpeg 9.0.1_1，生成哈希为 `cccd0b628f56c9b28745b9bf4ef0483602c73c04c665f847aa381cbf8707e6db` 与 `28ad36aa5439f31a2ffd963a5af23f634706374e0a5a0094ee527b5c0b45b4db`，与 9.0.2 派生清单不一致，清单 diff 使步骤退出 1；后续测试、构建与上传均跳过。
 - 修复提交 `a9d4c7e5089c` 在安装前运行 `brew update`，并要求实际 FFmpeg 版本等于 9.0.2。没有删除清单一致性检查。
 - [运行 #7](https://github.com/Resker666/minimal-sleep/actions/runs/35958729555) 状态 Success，总耗时 5 分 44 秒。Set up Python 3.12、Install FFmpeg、Prepare generated iOS audio、Run iOS tests、Build unsigned simulator app、Verify and package simulator app、Upload simulator app 与下载链接步骤均为 success。
 - 产物 `minimal-sleep-ios-simulator-7` 的 GitHub API 大小为 98,676,086 字节，页面显示 94.1 MB，外层摘要为 `sha256:90281f002c7e4f4bedef08fb837d2f369ded5f2bd358259114acfb9be0ce302d`，到期时间为 2026-10-08 05:15:25 UTC。
-- 已在登录状态下载 Artifact。Safari 自动解开外层 ZIP 后，目录中有 `MinimalSleep-iOS-Simulator.zip`（98,675,644 字节）和 `MinimalSleep-iOS-Simulator.zip.sha256`；内部 ZIP 实算 SHA-256 为 `6ffcce703d221ed8d17d87ca8eacae8391fbea8edc01f412d09317106aa33fb1`，与随包文件一致。随包文件记录了 CI 工作目录前缀 `dist/`，因此在自动解开的目录中按实际文件名比较哈希。
+- 已在登录状态下载运行 #7 Artifact。Safari 自动解开外层 ZIP 后，目录中有 `MinimalSleep-iOS-Simulator.zip`（98,675,644 字节）和 `MinimalSleep-iOS-Simulator.zip.sha256`；内部 ZIP 实算 SHA-256 为 `6ffcce703d221ed8d17d87ca8eacae8391fbea8edc01f412d09317106aa33fb1`，与随包文件一致。随包文件当时记录了 CI 工作目录前缀 `dist/`，因此在自动解开的目录中按实际文件名比较哈希。
+- 最终复查提交 `9f9e9a17bac4` 让 `.gitignore` 变更触发工作流，以 `assert_ignored` 拒绝反向取消忽略的规则，并让校验文件只记录包文件名。修复后的 [运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 状态 Success，总耗时 6 分 58 秒；所有构建步骤及收尾步骤均为 success。
+- 运行 #8 产物 `minimal-sleep-ios-simulator-8` 的 GitHub API 大小为 98,676,081 字节，外层摘要为 `sha256:54a1ddf2c83a6a9cd92b026e72a9a2e8ccc4e9b09c847f593139e562b3fd4271`，到期时间为 2026-10-08 05:34:21 UTC。打包步骤已在 `dist` 目录中直接执行 `shasum -a 256 -c MinimalSleep-iOS-Simulator.zip.sha256` 并成功；本机尚未独立下载运行 #8 产物。
 
 本次运行命令使用仓库文档中的生成命令，以及 `CODE_SIGNING_ALLOWED=NO` 的 Debug XCTest 和 Release 模拟器构建。结果包保存于 `/tmp/minimal-sleep-ios-reliability-tests.xcresult`，构建输出位于 `/tmp/minimal-sleep-ios-reliability-release`；二者均为本机临时证据，不进入 Git。模拟器和无签名构建不能证明真实扬声器听感、锁屏连续性、路由安全、耗电或整夜可靠性。
 

@@ -4,9 +4,9 @@
 
 - Git 历史中的 `ios/MinimalSleep/Resources/rain-01.wav` 和 `rain-04.wav` 已完成清理；后续不再重写仓库历史。fresh clone 只保留两个 Ogg 源文件，两个约 52 MB 的 PCM WAV 改为本地或 CI 构建前生成。
 - `.gitignore` 已明确排除两个最终 WAV 和 `.rain-*.transcoding.wav` 临时文件；三个小型 WAV 继续由 Git 跟踪。
-- iOS 工作流已加入 Python 3.12、FFmpeg 9.0.2 版本门禁、音频工具测试、生成、清单一致性检查，以及 App 包内五个声音的强制检查。[云端运行 #7](https://github.com/Resker666/minimal-sleep/actions/runs/35958729555) 在提交 `a9d4c7e5089c` 上成功，所有关键步骤均通过，总耗时 5 分 44 秒。
+- iOS 工作流已加入 Python 3.12、FFmpeg 9.0.2 版本门禁、音频工具测试、生成、清单一致性检查，以及 App 包内五个声音的强制检查。[云端运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 在提交 `9f9e9a17bac4` 上成功，所有关键步骤均通过，总耗时 6 分 58 秒。
 - 首次运行 [#6](https://github.com/Resker666/minimal-sleep/actions/runs/35958149518) 使用 runner 的旧 Homebrew 元数据安装了 FFmpeg 9.0.1_1，两个 PCM 哈希与 FFmpeg 9.0.2 清单不同，因此严格清单检查按设计失败。修复通过 `brew update` 和明确的 9.0.2 版本检查固定输入，没有删除或放宽清单检查。
-- 运行 #7 产物为 `minimal-sleep-ios-simulator-7`，GitHub API 大小 98,676,086 字节（页面显示 94.1 MB），外层 Artifact 摘要为 `sha256:90281f002c7e4f4bedef08fb837d2f369ded5f2bd358259114acfb9be0ce302d`。已通过登录状态下载并由 Safari 解开外层 ZIP；内部 `MinimalSleep-iOS-Simulator.zip` 为 98,675,644 字节，计算值 `6ffcce703d221ed8d17d87ca8eacae8391fbea8edc01f412d09317106aa33fb1` 与随包 `.sha256` 一致。
+- 运行 #8 产物为 `minimal-sleep-ios-simulator-8`，GitHub API 大小 98,676,081 字节，外层 Artifact 摘要为 `sha256:54a1ddf2c83a6a9cd92b026e72a9a2e8ccc4e9b09c847f593139e562b3fd4271`，到期时间为 2026-10-08 05:34:21 UTC。打包步骤在 `dist` 目录内用便携文件名生成并直接执行 `shasum -a 256 -c`，已通过；本机尚未独立下载运行 #8 产物。此前运行 #7 已完成本机下载并核对内部 ZIP 哈希。
 - 2026-09-24 在提交 `3e2e902ba59e` 上使用 macOS 27.0、Xcode 27.0、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2 与 iPhone 18 Pro / iOS 27.0 模拟器完成复验：4/4 Python 音频测试通过，两个生成 WAV 的 SHA-256 与派生清单一致，31/31 XCTest 通过，未签名 Release 模拟器 App 构建成功并包含五个非空 WAV。
 - 生成的 `rain-01.wav` 和 `rain-04.wav` 保持被忽略、未跟踪，Personal Team、证书、描述文件和用户数据均未进入本分支。
 - 真机基础播放、两段雨声各跨两次循环、锁屏 15 分钟淡出、30–60 分钟后台播放、耳机或蓝牙断开、音频中断、MP3/M4A/WAV 导入、覆盖安装、飞行模式和 8 小时整夜播放均为**未测**，等待用户可以配合真机时继续。
