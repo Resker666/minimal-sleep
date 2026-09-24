@@ -6,7 +6,7 @@ struct MinimalSleepApp: App {
     @StateObject private var audioCoordinator: AudioCoordinator
     @StateObject private var importedLibrary: ImportedSoundLibrary
     @StateObject private var nightRecordingCoordinator: NightRecordingCoordinator
-    private let recordingStore: RecordingStore?
+    @StateObject private var recordingLibrary: RecordingLibrary
 
     init() {
         let sessionController = AudioSessionController()
@@ -31,7 +31,18 @@ struct MinimalSleepApp: App {
         AudioSafetyBridge.connect(
             session: sessionController, playback: coordinator, recording: recording
         )
-        recordingStore = concreteStore
+        _recordingLibrary = StateObject(wrappedValue: RecordingLibrary(
+            store: concreteStore,
+            sleepAudio: coordinator,
+            audioSession: sessionController,
+            isRecording: { [weak recording] in
+                guard let recording else { return false }
+                switch recording.state {
+                case .requestingPermission, .starting, .recording, .stopping: return true
+                default: return false
+                }
+            }
+        ))
         _audioCoordinator = StateObject(wrappedValue: coordinator)
         _nightRecordingCoordinator = StateObject(wrappedValue: recording)
         _importedLibrary = StateObject(
@@ -41,9 +52,11 @@ struct MinimalSleepApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView(
-                coordinator: audioCoordinator,
-                importedLibrary: importedLibrary
+            RootTabView(
+                audioCoordinator: audioCoordinator,
+                importedLibrary: importedLibrary,
+                recordingCoordinator: nightRecordingCoordinator,
+                recordingLibrary: recordingLibrary
             )
             .preferredColorScheme(.dark)
         }

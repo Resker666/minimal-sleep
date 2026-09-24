@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct HomeView: View {
     @ObservedObject var coordinator: AudioCoordinator
     @ObservedObject var importedLibrary: ImportedSoundLibrary
+    @ObservedObject var recordingCoordinator: NightRecordingCoordinator
 
     @State private var showsAbout = false
     @State private var showsImporter = false
@@ -16,6 +17,9 @@ struct HomeView: View {
                 soundSection
                 playbackSection
                 timerSection
+                Section("夜间记录") {
+                    RecordingControlsView(coordinator: recordingCoordinator)
+                }
                 importSection
             }
             .scrollContentBackground(.hidden)
