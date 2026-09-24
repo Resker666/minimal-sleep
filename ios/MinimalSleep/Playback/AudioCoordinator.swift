@@ -1,6 +1,12 @@
 import Combine
 import Foundation
 
+struct RecordingPlaybackSnapshot: Equatable, Sendable {
+    let isPlaying: Bool
+    let soundID: String
+    let appVolume: Float
+}
+
 @MainActor
 protocol AudioPlaybackEngine: AnyObject {
     var loadedSoundID: String? { get }
@@ -86,6 +92,13 @@ final class AudioCoordinator: ObservableObject {
     var selectedDuration: SleepDuration { timerPolicy.selectedDuration }
     var isPlaying: Bool { playbackState == .playing }
     var currentImportedSoundID: UUID? { selectedSound.importedSoundID }
+    var recordingPlaybackSnapshot: RecordingPlaybackSnapshot {
+        RecordingPlaybackSnapshot(
+            isPlaying: playbackState == .playing,
+            soundID: selectedSound.id,
+            appVolume: baseVolume * Float(timerSnapshot.fadeGain)
+        )
+    }
 
     private let engine: AudioPlaybackEngine?
     private let resourceBundle: Bundle

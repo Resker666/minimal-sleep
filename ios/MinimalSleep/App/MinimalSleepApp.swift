@@ -7,8 +7,9 @@ struct MinimalSleepApp: App {
     @StateObject private var importedLibrary: ImportedSoundLibrary
 
     init() {
+        let sessionController = AudioSessionController()
         let coordinator = AudioCoordinator(
-            engine: AVAudioPlayerPlaybackEngine(),
+            engine: AVAudioPlayerPlaybackEngine(sessionController: sessionController),
             preferences: UserDefaultsPlaybackPreferences()
         )
         _audioCoordinator = StateObject(wrappedValue: coordinator)
