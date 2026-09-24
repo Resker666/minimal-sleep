@@ -22,7 +22,7 @@ xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configurati
 xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /tmp/minimal-sleep-ios-device-derived build CODE_SIGNING_ALLOWED=NO
 ```
 
-The committed WAV files are sufficient to build. Python 3.12 and FFmpeg are required only when regenerating the two iOS rain derivatives with `tools/prepare_ios_audio.py`.
+Git contains the three small WAV files and the two shared Ogg rain sources. Before a fresh-clone iOS build, use Python 3.12 and FFmpeg to generate the two ignored AAC/M4A rain resources with `tools/prepare_ios_audio.py`.
 
 ## Install on an iPhone
 

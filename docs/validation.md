@@ -147,3 +147,11 @@
 - Artifact `minimal-sleep-ios-simulator-7`：98,676,086 字节（GitHub 页面 94.1 MB），外层摘要 `sha256:90281f002c7e4f4bedef08fb837d2f369ded5f2bd358259114acfb9be0ce302d`。登录下载并自动解开外层 ZIP 后，内部 App ZIP 为 98,675,644 字节；实算 SHA-256 `6ffcce703d221ed8d17d87ca8eacae8391fbea8edc01f412d09317106aa33fb1`，与随包 `.sha256` 一致。
 - 最终复查提交 `9f9e9a17bac43b206e25c78a8602b62450feff12` 补上 `.gitignore` 路径触发、反向忽略规则拒绝和便携校验文件名。[iOS 运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 状态 Success，总耗时 6 分 58 秒；全部构建及收尾步骤均为 success。Artifact `minimal-sleep-ios-simulator-8` 为 98,676,081 字节，外层摘要 `sha256:54a1ddf2c83a6a9cd92b026e72a9a2e8ccc4e9b09c847f593139e562b3fd4271`，到期时间 2026-10-08 05:34:21 UTC。CI 打包步骤已直接执行随包 SHA-256 校验并成功；本机尚未独立下载运行 #8 产物。
 - 云端产物仍是未签名 iOS Simulator App，不能安装到 iPhone；本节不代表任何真机项目通过。
+
+## 2026-09-24 iOS AAC/M4A 压缩本机验证
+
+- 两段 Android Ogg 保持 298 秒且不改动。iOS 派生格式由 16-bit PCM WAV 改为 128 kbps AAC/M4A，不再次裁剪、调整增益、改变声道或重采样。
+- `rain-01.m4a` 为 4,834,016 字节，SHA-256 `ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc`；`rain-04.m4a` 为 4,859,928 字节，SHA-256 `b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b`。两者均为 298 秒、AAC、44.1 kHz、双声道，并低于脚本的 6,500,000 字节单文件上限。
+- Homebrew Python 3.12.14 下 6 个 iOS 音频准备测试通过；在全新临时目录重新生成后，两个 M4A 和两份派生清单与工作区结果逐字节一致。
+- iPhone 18 Pro / iOS 27.0 模拟器执行 33 个 XCTest，0 失败；测试确认两个 M4A 可从主 Bundle 查找、可由 AVAudioPlayer 加载且时长为 298 秒。Release 模拟器构建成功，App 中有两段 M4A 和三段 WAV，旧雨声 WAV 不存在；App 目录约 18 MB，本机打包 ZIP 约 17 MB。
+- 本节不记录云端或真机通过。AAC 循环边界、真实扬声器听感、锁屏持续播放和整夜可靠性仍需真机验证。

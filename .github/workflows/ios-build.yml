@@ -74,7 +74,9 @@ jobs:
 
           tracked_generated="$(git ls-files -- \
             ios/MinimalSleep/Resources/rain-01.wav \
-            ios/MinimalSleep/Resources/rain-04.wav)"
+            ios/MinimalSleep/Resources/rain-04.wav \
+            ios/MinimalSleep/Resources/rain-01.m4a \
+            ios/MinimalSleep/Resources/rain-04.m4a)"
           test -z "$tracked_generated"
 
           assert_ignored() {
@@ -99,12 +101,18 @@ jobs:
           assert_ignored ios/MinimalSleep/Resources/rain-04.wav
           assert_ignored ios/MinimalSleep/Resources/.rain-01.transcoding.wav
           assert_ignored ios/MinimalSleep/Resources/.rain-04.transcoding.wav
+          assert_ignored ios/MinimalSleep/Resources/rain-01.m4a
+          assert_ignored ios/MinimalSleep/Resources/rain-04.m4a
+          assert_ignored ios/MinimalSleep/Resources/.rain-01.transcoding.m4a
+          assert_ignored ios/MinimalSleep/Resources/.rain-04.transcoding.m4a
 
           python -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
           python tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"
 
-          test -s ios/MinimalSleep/Resources/rain-01.wav
-          test -s ios/MinimalSleep/Resources/rain-04.wav
+          test -s ios/MinimalSleep/Resources/rain-01.m4a
+          test -s ios/MinimalSleep/Resources/rain-04.m4a
+          test ! -e ios/MinimalSleep/Resources/rain-01.wav
+          test ! -e ios/MinimalSleep/Resources/rain-04.wav
 
           git diff --exit-code -- \
             assets-manifest.csv \
@@ -176,8 +184,10 @@ jobs:
           app="$RUNNER_TEMP/ios-release/Build/Products/Release-iphonesimulator/MinimalSleep.app"
           test -d "$app"
           test -s "$app/MinimalSleep"
-          test -s "$app/rain-01.wav"
-          test -s "$app/rain-04.wav"
+          test -s "$app/rain-01.m4a"
+          test -s "$app/rain-04.m4a"
+          test ! -e "$app/rain-01.wav"
+          test ! -e "$app/rain-04.wav"
           test -s "$app/heavy_rain.wav"
           test -s "$app/ocean_waves.wav"
           test -s "$app/white_noise.wav"

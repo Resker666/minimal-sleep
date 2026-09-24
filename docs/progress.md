@@ -29,6 +29,6 @@
 
 ## 2026-09-24 iOS 生成音频与本机复验
 
-- Git 历史清理已经完成，后续不再重写。Android 继续直接使用已跟踪的 `rain-01.ogg` 和 `rain-04.ogg`；iOS 从同一组 Ogg 生成被忽略的 44.1 kHz、双声道、16-bit PCM WAV。仓库当前版本和可达历史不再保存两个约 52 MB 的派生 WAV。
-- `.gitignore` 保护两个最终 WAV 和转码临时文件；iOS CI 已固定 FFmpeg 9.0.2，完成生成、严格清单一致性、31 个 XCTest、App 包五资源、便携 SHA-256 文件和产物上传检查。[运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 成功，总耗时 6 分 58 秒，生成 `minimal-sleep-ios-simulator-8`。
-- 本机 4 个音频准备测试、31 个 iOS XCTest、未签名 Release 模拟器构建及 App 包五个声音检查均通过。真机可靠性项目仍未执行。
+- Git 历史清理已经完成，后续不再重写。Android 继续直接使用已跟踪的 `rain-01.ogg` 和 `rain-04.ogg`；iOS 从同一组 Ogg 生成被忽略的 298 秒、44.1 kHz、双声道、128 kbps AAC/M4A。仓库当前版本和可达历史不保存生成的 M4A 或两个旧的约 52 MB PCM WAV。
+- 两段 iOS M4A 分别为 4,834,016 和 4,859,928 字节，合计约 9.2 MiB。FFmpeg 9.0.2 的重复生成结果逐字节一致；6 个音频准备测试和 33 个 iOS XCTest 通过，未签名 Release 模拟器 App 构建成功，仅包含两段 M4A 与三段小型 WAV，App 目录约 18 MB，ZIP 约 17 MB。
+- iOS CI 已固定 FFmpeg 9.0.2，执行生成、严格清单一致性、App 包资源与旧 WAV 缺失检查。M4A 变更的云端运行结果待本分支推送后补充；真机循环听感及其余可靠性项目仍未执行。

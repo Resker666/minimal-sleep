@@ -69,7 +69,7 @@ Git tracks these three smaller iOS WAV resources directly:
 - `ios/MinimalSleep/Resources/ocean_waves.wav`
 - `ios/MinimalSleep/Resources/white_noise.wav`
 
-The two 298-second rain PCM files are generated build inputs. Git tracks their shared Android/iOS Ogg sources at `app/src/main/assets/local-sounds/rain-01.ogg` and `rain-04.ogg`, while `.gitignore` excludes the generated `rain-01.wav`, `rain-04.wav`, and temporary `.rain-*.transcoding.wav` files.
+The two 298-second rain AAC/M4A files are generated build inputs. Git tracks their shared Android/iOS Ogg sources at `app/src/main/assets/local-sounds/rain-01.ogg` and `rain-04.ogg`, while `.gitignore` excludes the generated `rain-01.m4a`, `rain-04.m4a`, temporary `.rain-*.transcoding.m4a` files, and obsolete generated WAV names.
 
 After a fresh clone, prepare the full iOS resources before running Xcode locally:
 
@@ -79,9 +79,9 @@ python3 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
 python3 tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)"
 ```
 
-The script refuses to overwrite an existing output. To intentionally regenerate, delete only `ios/MinimalSleep/Resources/rain-01.wav` and `rain-04.wav`, rerun the commands, and verify that `assets-manifest.csv` and `ios/MinimalSleep/Resources/audio-derivations.json` have no unexpected diff. Do not add the generated WAV files to Git.
+The script refuses to overwrite an existing output. To intentionally regenerate, delete only `ios/MinimalSleep/Resources/rain-01.m4a` and `rain-04.m4a`, rerun the commands, and verify that `assets-manifest.csv` and `ios/MinimalSleep/Resources/audio-derivations.json` have no unexpected diff. Remove obsolete `rain-01.wav` and `rain-04.wav` files if an older workspace still has them. Do not add generated audio files to Git.
 
-GitHub Actions performs the same preparation automatically, checks that the generated files remain untracked, and refuses to upload the simulator App unless all five built-in WAV resources are present. Local revalidation on 2026-09-24 used Apple Python 3.9.6 and Homebrew FFmpeg 9.0.2 successfully.
+GitHub Actions performs the same preparation automatically, checks that the generated files remain untracked, and refuses to upload the simulator App unless the two M4A rain resources and three WAV resources are present and the obsolete rain WAV files are absent. Local revalidation on 2026-09-24 used Homebrew Python 3.12 and FFmpeg 9.0.2.
 
 ## Personal Team installation
 

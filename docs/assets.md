@@ -33,19 +33,21 @@
 | `heavy_rain.wav` | `13104bdce5e7f7f4cfcada32f34a205f321d1247f53fe80be737c04aa06675fa` |
 | `ocean_waves.wav` | `b238fb1803bf8356572c5b7b055a38f84f8ffbcc5c78f147c00c73b7b020ffaa` |
 
-两段雨声不能把 Ogg 直接声明为 AVAudioPlayer 可播放资源。新增的 `tools/prepare_ios_audio.py` 读取已经完成循环剪辑的 `app/src/main/assets/local-sounds/rain-01.ogg`、`rain-04.ogg`，使用 FFmpeg `pcm_s16le` 输出 PCM WAV；命令没有裁剪、交叉淡化、滤镜、增益、声道转换或重采样。脚本拒绝覆盖输出，并在成功后写入源/输出 SHA-256、完整命令、PCM 参数、作者 **Resker666**、许可证 **CC BY 4.0** 和修改说明到 `ios/MinimalSleep/Resources/audio-derivations.json`，同时更新 `assets-manifest.csv`。
+两段雨声不能把 Ogg 直接声明为 AVAudioPlayer 可播放资源。`tools/prepare_ios_audio.py` 读取已经完成循环剪辑的 `app/src/main/assets/local-sounds/rain-01.ogg`、`rain-04.ogg`，使用 FFmpeg 输出 128 kbps AAC/M4A；命令没有再次裁剪、交叉淡化、滤镜、增益、声道转换或重采样。脚本拒绝覆盖输出，要求每个文件不超过 6,500,000 字节，并在成功后写入源/输出 SHA-256、完整命令、编码参数、作者 **Resker666**、许可证 **CC BY 4.0** 和修改说明到 `ios/MinimalSleep/Resources/audio-derivations.json`，同时更新 `assets-manifest.csv`。
 
-2026-09-23 在 M4 Mac 上使用 Homebrew FFmpeg 9.0.2 实际生成两段派生资源。两份输出均为 298 秒、44.1 kHz、双声道、16-bit PCM WAV：
+2026-09-24 在 M4 Mac 上使用 Homebrew FFmpeg 9.0.2 实际生成两段派生资源。两份输出均为 298 秒、44.1 kHz、双声道 AAC/M4A：
 
-| iOS 录制雨声派生资源 | SHA-256 |
-|---|---|
-| `rain-01.wav` | `bdfda7d0dec01eaf65eb006bc2f09d1276ec11ac601120d28e7797c35e958269` |
-| `rain-04.wav` | `3f66e5b609802376af96221911f50d474ef42239b449c80c22c911c742a5b8dc` |
+| iOS 录制雨声派生资源 | 字节 | SHA-256 |
+|---|---:|---|
+| `rain-01.m4a` | 4,834,016 | `ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc` |
+| `rain-04.m4a` | 4,859,928 | `b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b` |
 
 若需要从头重新派生，先有意移除已有输出，再从仓库根目录运行：
 
 ```bash
-/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py --ffmpeg /opt/homebrew/bin/ffmpeg
+/opt/homebrew/bin/python3.12 tools/prepare_ios_audio.py \
+  --ffmpeg /opt/homebrew/bin/ffmpeg \
+  --ffprobe /opt/homebrew/bin/ffprobe
 ```
 
-这一步只派生 iOS 文件，不覆盖两份 Android Ogg。脚本拒绝覆盖已有输出。雨声保留 Resker666 / CC BY 4.0 署名；仍须在 iPhone 上跨实际循环边界试听，PCM 格式和哈希检查不能证明接缝听不出。
+这一步只派生 iOS 文件，不覆盖两份 Android Ogg。脚本拒绝覆盖已有输出。雨声保留 Resker666 / CC BY 4.0 署名；AAC 是有损压缩，仍须在 iPhone 上跨实际循环边界试听，格式、时长和哈希检查不能证明接缝听不出。

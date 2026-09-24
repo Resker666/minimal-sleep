@@ -62,14 +62,14 @@ enum SoundCatalog {
             id: "recorded-rain-heavy",
             title: "大雨剪辑",
             resourceBaseName: "rain-01",
-            resourceExtension: "wav",
+            resourceExtension: "m4a",
             origin: .recordedRain(author: "Resker666", license: "CC BY 4.0")
         ),
         SoundDescriptor(
             id: "recorded-rain-thunder",
             title: "雨雷剪辑",
             resourceBaseName: "rain-04",
-            resourceExtension: "wav",
+            resourceExtension: "m4a",
             origin: .recordedRain(author: "Resker666", license: "CC BY 4.0")
         ),
         SoundDescriptor(

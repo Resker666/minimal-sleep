@@ -2,13 +2,13 @@
 
 ## 当前状态（2026-09-24）
 
-- Git 历史中的 `ios/MinimalSleep/Resources/rain-01.wav` 和 `rain-04.wav` 已完成清理；后续不再重写仓库历史。fresh clone 只保留两个 Ogg 源文件，两个约 52 MB 的 PCM WAV 改为本地或 CI 构建前生成。
-- `.gitignore` 已明确排除两个最终 WAV 和 `.rain-*.transcoding.wav` 临时文件；三个小型 WAV 继续由 Git 跟踪。
-- iOS 工作流已加入 Python 3.12、FFmpeg 9.0.2 版本门禁、音频工具测试、生成、清单一致性检查，以及 App 包内五个声音的强制检查。[云端运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 在提交 `9f9e9a17bac4` 上成功，所有关键步骤均通过，总耗时 6 分 58 秒。
+- Git 历史中的 `ios/MinimalSleep/Resources/rain-01.wav` 和 `rain-04.wav` 已完成清理；后续不再重写仓库历史。fresh clone 只保留两个 Ogg 源文件，iOS 本地或 CI 构建前生成压缩 M4A。
+- `.gitignore` 已明确排除两个最终 M4A、转码临时文件和旧 WAV 名称；三个小型 WAV 继续由 Git 跟踪。
+- iOS 工作流已加入 Python 3.12、FFmpeg 9.0.2 版本门禁、音频工具测试、生成、清单一致性检查，以及 App 包内两段 M4A、三段 WAV 和旧 WAV 缺失检查。此前 PCM 基线 [云端运行 #8](https://github.com/Resker666/minimal-sleep/actions/runs/35960026403) 成功；M4A 云端结果待推送后补充。
 - 首次运行 [#6](https://github.com/Resker666/minimal-sleep/actions/runs/35958149518) 使用 runner 的旧 Homebrew 元数据安装了 FFmpeg 9.0.1_1，两个 PCM 哈希与 FFmpeg 9.0.2 清单不同，因此严格清单检查按设计失败。修复通过 `brew update` 和明确的 9.0.2 版本检查固定输入，没有删除或放宽清单检查。
 - 运行 #8 产物为 `minimal-sleep-ios-simulator-8`，GitHub API 大小 98,676,081 字节，外层 Artifact 摘要为 `sha256:54a1ddf2c83a6a9cd92b026e72a9a2e8ccc4e9b09c847f593139e562b3fd4271`，到期时间为 2026-10-08 05:34:21 UTC。打包步骤在 `dist` 目录内用便携文件名生成并直接执行 `shasum -a 256 -c`，已通过；本机尚未独立下载运行 #8 产物。此前运行 #7 已完成本机下载并核对内部 ZIP 哈希。
-- 2026-09-24 在提交 `3e2e902ba59e` 上使用 macOS 27.0、Xcode 27.0、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2 与 iPhone 18 Pro / iOS 27.0 模拟器完成复验：4/4 Python 音频测试通过，两个生成 WAV 的 SHA-256 与派生清单一致，31/31 XCTest 通过，未签名 Release 模拟器 App 构建成功并包含五个非空 WAV。
-- 生成的 `rain-01.wav` 和 `rain-04.wav` 保持被忽略、未跟踪，Personal Team、证书、描述文件和用户数据均未进入本分支。
+- 2026-09-24 使用 Homebrew Python 3.12、FFmpeg 9.0.2、Xcode 27.0 与 iPhone 18 Pro / iOS 27.0 模拟器完成 M4A 复验：6/6 Python 音频测试通过，全新目录重复生成逐字节一致，33/33 XCTest 通过，未签名 Release 模拟器 App 构建成功。
+- `rain-01.m4a` 为 4,834,016 字节，SHA-256 `ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc`；`rain-04.m4a` 为 4,859,928 字节，SHA-256 `b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b`。生成文件保持被忽略、未跟踪，Personal Team、证书、描述文件和用户数据均未进入本分支。
 - 真机基础播放、两段雨声各跨两次循环、锁屏 15 分钟淡出、30–60 分钟后台播放、耳机或蓝牙断开、音频中断、MP3/M4A/WAV 导入、覆盖安装、飞行模式和 8 小时整夜播放均为**未测**，等待用户可以配合真机时继续。
 
 ## 2026-09-23 历史记录

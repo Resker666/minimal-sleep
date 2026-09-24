@@ -35,3 +35,6 @@ __pycache__/
 /ios/MinimalSleep/Resources/rain-01.wav
 /ios/MinimalSleep/Resources/rain-04.wav
 /ios/MinimalSleep/Resources/.rain-*.transcoding.wav
+/ios/MinimalSleep/Resources/rain-01.m4a
+/ios/MinimalSleep/Resources/rain-04.m4a
+/ios/MinimalSleep/Resources/.rain-*.transcoding.m4a

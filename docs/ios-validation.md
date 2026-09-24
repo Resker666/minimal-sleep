@@ -1,6 +1,25 @@
 # iOS validation
 
-## 2026-09-24 本地生成与模拟器复验
+## 2026-09-24 AAC/M4A 压缩复验
+
+验证分支为 `codex/ios-reliability`。环境为 macOS 27.0、Xcode 27.0、Homebrew Python 3.12.14、FFmpeg/FFprobe 9.0.2，以及 iPhone 18 Pro / iOS 27.0 模拟器 `75FA9690-7229-4F85-96C1-284AD9262383`。
+
+| 检查 | 实际结果 | 状态 |
+|---|---|---|
+| `test_prepare_ios_audio.py` | 6 个测试通过，0 失败 | 通过 |
+| M4A 确定性生成 | 在全新临时目录重新生成，两个文件及两份清单逐字节一致 | 通过 |
+| `rain-01.m4a` | 298 秒、AAC、44.1 kHz、双声道、4,834,016 字节；SHA-256 `ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc` | 通过 |
+| `rain-04.m4a` | 298 秒、AAC、44.1 kHz、双声道、4,859,928 字节；SHA-256 `b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b` | 通过 |
+| iOS XCTest | 33 个测试通过，0 失败；包含两个 M4A 的 Bundle 查找和 `AVAudioPlayer` 加载/时长检查 | 通过 |
+| Release 模拟器构建 | `** BUILD SUCCEEDED **` | 通过 |
+| App 包资源 | 两段 M4A 和三段 WAV 均存在且非空；旧 `rain-01.wav`、`rain-04.wav` 不存在 | 通过 |
+| App/ZIP 大小 | App 目录约 18 MB；本机 `ditto` ZIP 约 17 MB | 通过 |
+| M4A GitHub Actions | 待推送后验证 | 未测 |
+| M4A 真机播放与两次循环 | 需要用户听感确认 | 未测 |
+
+AAC 是有损压缩。自动验证能够确认格式、时长、大小、哈希、Bundle 包含关系和 AVAudioPlayer 能加载，但不能证明真实扬声器上的循环接缝听不出。
+
+## 2026-09-24 PCM WAV 基线复验
 
 验证分支为 `codex/ios-reliability`，验证时提交为 `3e2e902ba59e`。环境为 macOS 27.0 (`26A428`)、Xcode 27.0 (`27A266a`)、Apple Python 3.9.6、Homebrew FFmpeg 9.0.2，以及已启动的 iPhone 18 Pro / iOS 27.0 模拟器 `75FA9690-7229-4F85-96C1-284AD9262383`。
 

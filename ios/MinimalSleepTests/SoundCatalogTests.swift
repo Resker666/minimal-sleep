@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import MinimalSleep
 
@@ -21,5 +22,26 @@ final class SoundCatalogTests: XCTestCase {
         XCTAssertTrue(SoundCatalog.builtIn[2].isProceduralApproximation)
         XCTAssertTrue(SoundCatalog.builtIn[3].isProceduralApproximation)
         XCTAssertFalse(SoundCatalog.builtIn[4].isProceduralApproximation)
+    }
+
+    func testRecordedRainUsesCompressedM4AResources() {
+        XCTAssertEqual(
+            SoundCatalog.builtIn.prefix(2).map(\.resourceExtension),
+            ["m4a", "m4a"]
+        )
+    }
+
+    func testRecordedRainM4AResourcesAreBundledAndLoadable() throws {
+        for sound in SoundCatalog.builtIn.prefix(2) {
+            let url = try XCTUnwrap(
+                Bundle.main.url(
+                    forResource: sound.resourceBaseName,
+                    withExtension: sound.resourceExtension
+                )
+            )
+            let player = try AVAudioPlayer(contentsOf: url)
+
+            XCTAssertEqual(player.duration, 298, accuracy: 0.1)
+        }
     }
 }
