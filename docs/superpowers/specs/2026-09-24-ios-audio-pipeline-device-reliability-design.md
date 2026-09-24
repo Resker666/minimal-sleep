@@ -1,79 +1,86 @@
-# iOS Audio Pipeline and Device Reliability Design
+# iOS 音频生成流水线与真机可靠性设计
 
-**Date:** 2026-09-24
+**日期：** 2026-09-24
 
-**Status:** Approved in conversation; awaiting repository document review
+**状态：** 对话中的设计已确认，等待仓库文档审阅
 
-## Goal
+## 目标
 
-Make the existing iOS sleep player reproducible from a fresh clone and validate its current playback feature set on a physical iPhone. The repository must keep the smaller licensed Ogg sources and generate the two large PCM WAV derivatives during preparation and CI without tracking those generated files in Git.
+让现有 iOS 助眠播放器在全新克隆后可以稳定复现，并在真实 iPhone 上验证当前播放功能。仓库只保存较小的已授权 Ogg 源音频，在本地准备流程和 CI 中生成两段大型 PCM WAV，不将生成的 WAV 提交到 Git。
 
-## Scope
+## 本阶段范围
 
-This phase includes:
+本阶段包含：
 
-- deterministic preparation of `rain-01.wav` and `rain-04.wav` from the tracked Ogg sources;
-- Git ignore and CI checks that prevent those generated WAV files from being committed;
-- an iOS CI build whose application bundle contains all five built-in sounds;
-- automated regression tests relevant to audio preparation and existing playback behavior;
-- staged physical-device validation for playback, looping, lock-screen behavior, timers, route changes, imports, persistence, offline use, and overnight reliability;
-- fixes for defects found while performing those validations;
-- accurate updates to iOS development, progress, and validation documentation.
+- 从已跟踪的 Ogg 源音频生成 `rain-01.wav` 和 `rain-04.wav`；
+- 通过 Git 忽略规则和 CI 检查，阻止两个生成 WAV 再次进入仓库；
+- 保证 iOS CI 生成的 App 包含全部五种内置声音；
+- 运行与音频生成和现有播放功能有关的自动化回归测试；
+- 分阶段完成播放、循环接缝、锁屏、定时、音频路由、文件导入、数据保留、离线和整夜播放真机验证；
+- 修复真机验证期间发现的问题；
+- 准确更新 iOS 开发、进度和验证文档。
 
-This phase excludes microphone recording, sound classification, medical or sleep-quality claims, App Store/TestFlight distribution, signing credentials in CI, and any further Git history rewrite.
+本阶段不加入麦克风录音、声音分类、睡眠质量或医学结论、App Store/TestFlight 发布、CI 签名凭据，也不再次重写 Git 历史。
 
-## Current State
+## 当前状态
 
-The iOS client already has a SwiftUI interface, five catalog entries, `AVAudioPlayer` looping, a monotonic sleep timer with a ten-second fade, background audio, lock-screen controls, private MP3/M4A/WAV import, persistence, and deletion. The repository has 31 XCTest cases and a simulator CI workflow.
+iOS 客户端已经具备 SwiftUI 界面、五个声音条目、`AVAudioPlayer` 循环播放、基于单调时间的定时关闭与最后十秒淡出、后台音频、锁屏控制，以及 MP3/M4A/WAV 私有导入、持久化和删除。仓库已有 31 个 XCTest，并有模拟器 CI 工作流。
 
-The Git history cleanup intentionally removed these generated files:
+Git 历史清理已经移除下面两个生成文件：
 
 - `ios/MinimalSleep/Resources/rain-01.wav`
 - `ios/MinimalSleep/Resources/rain-04.wav`
 
-The tracked source assets remain:
+对应的源音频仍由 Git 跟踪：
 
 - `app/src/main/assets/local-sounds/rain-01.ogg`
 - `app/src/main/assets/local-sounds/rain-04.ogg`
 
-`tools/prepare_ios_audio.py` can decode those Ogg files to 44.1 kHz stereo 16-bit PCM WAV and record derivation metadata. The current CI workflow does not run that preparation step. A fresh-clone CI build can therefore succeed while packaging only three of the five catalog sounds; selecting either recorded-rain entry then fails at runtime with a missing resource.
+`tools/prepare_ios_audio.py` 可以把这两个 Ogg 解码成 44.1 kHz、双声道、16-bit PCM WAV，并记录派生信息。当前 CI 没有运行这一步。因此，CI 可以在缺少两段雨声的情况下构建成功；用户点击“大雨剪辑”或“雨雷剪辑”时，App 才会因资源缺失而失败。
 
-The existing `.gitignore` re-ignores the two final WAV paths after allowing other iOS WAV resources, but it contains trailing spaces and does not re-ignore the script's `.rain-*.transcoding.wav` temporary files after that allow rule.
+当前 `.gitignore` 在允许其他 iOS WAV 后，再次忽略了两个最终 WAV 路径，但相关行带有尾部空格。脚本使用的 `.rain-*.transcoding.wav` 临时文件还会被前面的 iOS WAV 例外规则重新放行，需要补充忽略规则。
 
-The main checkout also has local Xcode project changes produced by Personal Team selection and Xcode normalization. Those machine-specific changes are outside this phase and must not be committed.
+主工作区还有 Xcode 选择 Personal Team 和自动整理工程文件产生的本地修改。这些机器相关修改不属于本阶段，不能提交。
 
-## Design Decisions
+## 设计决策
 
-### 1. Explicit preparation and CI generation
+### 1. 显式准备，CI 自动生成
 
-Generated rain WAV files remain outside Git. Developers run one documented preparation command after a fresh clone and before opening or building the complete app:
+两个生成 WAV 始终不进入 Git。开发者全新克隆仓库后，在构建完整 App 前执行一次：
 
 ```bash
 python3 tools/prepare_ios_audio.py --ffmpeg ffmpeg
 ```
 
-The CI workflow runs the same script from a clean checkout before XCTest and the Release simulator build. Audio generation will not be added as an Xcode Run Script build phase. This keeps Xcode builds independent from Homebrew path conventions, avoids running an external transcoder on every incremental build, and makes preparation failures visible as a separate CI step.
+CI 从干净 checkout 开始，在 XCTest 和 Release 模拟器构建之前执行同一个脚本。
 
-The script's existing default behavior remains conservative: it refuses to overwrite an existing output. Regeneration requires intentionally removing the ignored derivatives first. The script continues to create outputs through temporary files and publishes only complete files.
+本阶段不把 FFmpeg 生成命令加入 Xcode Run Script Build Phase，原因如下：
 
-### 2. Source and derivation integrity
+- Xcode 构建不应依赖某个固定 Homebrew 安装路径；
+- 普通增量编译不需要反复运行外部转码器；
+- 音频准备失败应作为独立步骤显示，便于定位；
+- 开发者可以明确知道哪些文件是准备阶段生成的。
 
-The tracked Ogg files are the canonical cross-platform distribution assets for these two recordings. The iOS WAV files are derived build inputs.
+脚本继续保持保守行为：目标文件已经存在时拒绝覆盖。需要重新生成时，开发者必须有意删除被忽略的派生文件后再运行。脚本继续先写临时文件，完成检查后再发布最终文件，避免留下不完整输出。
 
-CI will:
+### 2. 源文件和派生信息一致性
 
-1. run the focused Python tests for `prepare_ios_audio.py`;
-2. record the FFmpeg version used;
-3. generate both WAV files from a clean checkout;
-4. require both outputs to be non-empty PCM WAV files;
-5. require the tracked derivation manifests to remain unchanged after generation;
-6. fail if either generated WAV path is present in `git ls-files`.
+两个已跟踪的 Ogg 是跨平台使用的压缩源资源，iOS PCM WAV 是构建前生成的派生资源。
 
-A manifest difference means the source, decoder output, or documented derivation no longer matches the committed provenance and must be reviewed explicitly.
+CI 按下面顺序执行：
 
-### 3. Git ignore rules
+1. 运行 `prepare_ios_audio.py` 的专用 Python 测试；
+2. 输出所使用的 FFmpeg 版本；
+3. 从干净 checkout 生成两个 WAV；
+4. 确认两个输出非空，并且是预期的 PCM WAV；
+5. 确认生成后，已跟踪的派生清单没有发生变化；
+6. 确认 `git ls-files` 中不存在两个生成 WAV。
 
-The exact generated paths will use root-anchored rules placed after the existing iOS WAV exception:
+如果生成后派生清单发生变化，说明源音频、解码结果或已有来源记录不一致。CI 应失败，开发者必须检查并明确提交新的来源和哈希记录。
+
+### 3. Git 忽略规则
+
+在现有 iOS WAV 例外规则之后，使用明确的仓库根路径：
 
 ```gitignore
 # Generated iOS audio. Rebuild with tools/prepare_ios_audio.py.
@@ -82,11 +89,11 @@ The exact generated paths will use root-anchored rules placed after the existing
 /ios/MinimalSleep/Resources/.rain-*.transcoding.wav
 ```
 
-Other small, intentionally tracked iOS WAV resources remain allowed. No size-based history filter or broad `Resources/*.wav` exclusion will be introduced.
+其他体积较小、需要进入 App 的 iOS WAV 继续由 Git 跟踪。本阶段不添加按大小删除对象的规则，也不使用会误伤其他资源的 `Resources/*.wav` 整目录排除。
 
-### 4. CI triggers and bundle verification
+### 4. CI 触发范围和 App 包验证
 
-The iOS workflow will also run when these inputs change:
+除现有 `ios/**` 变化外，下面这些输入变化时也要触发 iOS CI：
 
 - `app/src/main/assets/local-sounds/rain-01.ogg`
 - `app/src/main/assets/local-sounds/rain-04.ogg`
@@ -94,7 +101,7 @@ The iOS workflow will also run when these inputs change:
 - `tools/test_prepare_ios_audio.py`
 - `assets-manifest.csv`
 
-After building, CI will inspect `MinimalSleep.app` and require these bundled resources:
+构建结束后，CI 检查 `MinimalSleep.app` 中是否包含：
 
 - `rain-01.wav`
 - `rain-04.wav`
@@ -102,107 +109,114 @@ After building, CI will inspect `MinimalSleep.app` and require these bundled res
 - `ocean_waves.wav`
 - `white_noise.wav`
 
-The artifact is uploaded only after this check succeeds. The artifact remains an unsigned simulator application and is not represented as installable on an iPhone.
+只有五个文件全部存在时，CI 才上传产物。该产物仍是未签名的模拟器 App，不能描述为可以安装到真实 iPhone 的 IPA。
 
-### 5. Local signing isolation
+### 5. 本机签名隔离
 
-Personal Team IDs, certificates, provisioning profiles, Apple account data, and Xcode user data remain local. CI continues to use `CODE_SIGNING_ALLOWED=NO` for simulator tests and builds.
+Personal Team ID、证书、描述文件、Apple 账号信息和 Xcode 用户数据只保留在本机。CI 继续使用 `CODE_SIGNING_ALLOWED=NO` 运行模拟器测试和构建。
 
-Physical-device commands may use the signing state already stored by Xcode on this Mac, but no signing identifiers created by Xcode normalization are included in feature commits. Before each commit, the staged diff must be checked for `DEVELOPMENT_TEAM`, certificate material, profiles, and unrelated project-file normalization.
+真机构建可以使用这台 Mac 已经保存在 Xcode 中的签名状态，但功能提交不能包含 Xcode 自动写入的个人签名设置。每次提交前检查暂存区，排除：
 
-## Physical-Device Validation
+- `DEVELOPMENT_TEAM`；
+- 证书、密钥和描述文件；
+- Xcode 用户数据；
+- 与本阶段无关的工程格式整理。
 
-Validation proceeds in increasing duration so short failures are found before overnight testing.
+## 真机验证顺序
 
-### Stage 1: Smoke test
+验证按时间从短到长进行，先发现快速问题，再安排整夜测试。
 
-- install or update the app without uninstalling the existing copy;
-- launch without automatic playback;
-- play, pause, change volume, and switch through all five built-in sounds;
-- confirm lock-screen title, attribution, play, and pause state;
-- confirm only one sound plays at a time and no missing-resource error appears.
+### 阶段 1：基础短测
 
-### Stage 2: Loop boundaries and timer
+- 在不卸载旧 App 的情况下安装或覆盖更新；
+- 启动后不自动播放；
+- 依次播放五种内置声音，检查播放、暂停、音量和切换；
+- 检查锁屏界面的标题、署名、播放和暂停状态；
+- 确认任何时刻只有一个声音在播放；
+- 确认两段雨声不再出现“资源缺失”错误。
 
-- play `rain-01` across at least two 298-second boundaries;
-- play `rain-04` across at least two 298-second boundaries;
-- listen for silence, clicks, duplicated transients, or obvious level changes at each boundary;
-- run an actual 15-minute locked-screen timer;
-- confirm audible fade during the final ten seconds and stopped state at expiry;
-- confirm an expired remote play command does not unexpectedly resume the session.
+### 阶段 2：循环边界与定时关闭
 
-### Stage 3: Background and route safety
+- `rain-01` 至少跨越两个 298 秒循环边界；
+- `rain-04` 至少跨越两个 298 秒循环边界；
+- 人耳检查边界处是否有静音、爆音、瞬态重复或明显音量变化；
+- 锁屏运行一次真实的 15 分钟定时；
+- 确认最后十秒有可听见的淡出，到期后停止；
+- 到期后使用锁屏播放按钮，确认过期会话不会意外恢复。
 
-- play with the screen locked for 30 to 60 minutes without debugger keepalive;
-- disconnect wired or Bluetooth audio and confirm playback pauses rather than moving unexpectedly to the speaker;
-- trigger an audio interruption or competing playback source and confirm the app pauses and does not automatically resume;
-- record the output route and the exact action used for each result.
+### 阶段 3：后台播放与音频路由安全
 
-### Stage 4: Import and persistence
+- 不依赖调试器保活，锁屏播放 30 至 60 分钟；
+- 断开有线或蓝牙音频，确认播放暂停，不会突然转为扬声器外放；
+- 使用其他 App 抢占音频或触发一次音频中断；
+- 确认极简睡眠暂停，并且不会未经用户操作自动恢复；
+- 每个结果记录实际输出设备和操作步骤。
 
-- import one legal MP3, one M4A, and one WAV through the system file picker;
-- cancel one file-picker operation and confirm it is not shown as an error;
-- play and delete an imported sound, including deleting the currently selected item;
-- force quit and relaunch, confirming preferences and remaining imports persist without autoplay;
-- update the installed app without uninstalling it and confirm private imports remain;
-- repeat built-in and imported playback in airplane mode.
+### 阶段 4：导入与数据保留
 
-No private recording or user-selected audio is copied into the repository, CI, or test logs.
+- 通过系统文件选择器分别导入一份合法 MP3、M4A 和 WAV；
+- 取消一次文件选择，确认不会显示为错误；
+- 播放并删除导入声音，包括删除当前选中的声音；
+- 强制退出并重新打开，确认偏好和剩余导入文件仍存在，且不会自动播放；
+- 覆盖安装新版本，不卸载 App，确认私有导入文件保留；
+- 在飞行模式下重复测试内置和导入声音。
 
-### Stage 5: Overnight playback
+用户选择的私人音频和手机录音不得复制到仓库、CI 或测试日志。
 
-After Stages 1 through 4 pass, run one eight-hour playback session without a debugger attached. Record:
+### 阶段 5：整夜播放
 
-- device model and iOS version;
-- app commit and installation method;
-- selected sound and timer mode;
-- start and end time;
-- charging state, start/end battery, Low Power Mode, screen state, route, and approximate temperature;
-- any playback interruption, unexpected stop, route change, or UI discrepancy.
+阶段 1 至 4 通过后，执行一次不连接调试器的八小时播放。记录：
 
-A test performed while USB charging does not establish battery consumption. Passing one night is evidence for that setup, not a universal reliability claim.
+- 手机型号和 iOS 版本；
+- App 对应提交和安装方式；
+- 使用的声音和定时模式；
+- 开始和结束时间；
+- 是否充电、起止电量、低电量模式、屏幕状态、输出设备和大致温度；
+- 是否出现播放中断、意外停止、路由变化或界面状态不一致。
 
-## Error Handling
+连接 USB 充电完成的测试不能用于估算耗电。单次整夜通过只证明该次设备和条件下的结果，不能扩大为所有设备可靠性结论。
 
-- Audio preparation stops on a missing source, unavailable FFmpeg binary, stale temporary file, existing final output, decode error, or manifest mismatch.
-- CI stops before XCTest if generation or provenance checks fail.
-- CI stops before artifact upload if any of the five resources is absent from the application bundle.
-- Runtime missing-resource and decode failures continue to stop the current session, clear timer and lock-screen state, and present an understandable error.
-- Device validation failures are recorded with their exact conditions. A failed or interrupted long test is not reported as passed.
+## 错误处理
 
-## Automated Verification
+- 缺少源音频、找不到 FFmpeg、存在遗留临时文件、最终输出已存在、解码失败或派生清单不一致时，音频准备立即失败。
+- 音频生成或来源检查失败时，CI 不进入 XCTest。
+- App 包缺少任意一个内置声音时，CI 不上传产物。
+- 运行时资源缺失或解码失败时，继续使用现有安全行为：停止播放、清除定时和锁屏状态，并显示可理解的错误。
+- 真机长测失败或中断时，记录实际条件，不写成通过。
 
-The implementation will run:
+## 自动化验证
+
+实现阶段运行：
 
 ```bash
 python3 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
 ```
 
-It will then generate the ignored WAV files in the isolated worktree, run the full iOS XCTest suite on an available simulator, build the unsigned Release simulator app, inspect the bundle resources, and confirm the generated WAV paths are ignored and untracked.
+随后在隔离 worktree 中生成被忽略的 WAV，使用可用模拟器运行完整 iOS XCTest，构建未签名 Release 模拟器 App，检查包内资源，并确认生成 WAV 仍处于“已忽略且未跟踪”状态。
 
-Tests that write build products use temporary or DerivedData locations outside the repository. Generated WAV files are deleted from the disposable worktree when they are no longer needed; they are never staged.
+测试产生的构建文件写入临时目录或仓库外的 DerivedData。完成验证后可以删除隔离 worktree 中的生成 WAV；这些文件在任何时候都不能进入暂存区。
 
-## Documentation
+## 文档更新
 
-The following documents will be updated with current-state language rather than rewriting old evidence:
+实现时更新：
 
-- `docs/ios-development.md`: fresh-clone audio preparation and build instructions;
-- `docs/ios-progress.md`: history cleanup consequences, repaired CI pipeline, and remaining physical tests;
-- `docs/ios-validation.md`: exact automated and physical-device evidence;
-- `README.md`: only if its current platform summary becomes inaccurate.
+- `docs/ios-development.md`：全新克隆后的音频准备和构建方法；
+- `docs/ios-progress.md`：历史清理后的状态、CI 修复和剩余真机测试；
+- `docs/ios-validation.md`：实际运行过的自动化和真机证据；
+- `README.md`：仅在当前平台摘要已经不准确时修改。
 
-Substantial code fixes discovered during device validation also update `docs/progress.md` and `docs/validation.md` as required by the repository instructions.
+如果真机验证发现问题并产生较大的代码修改，还要按照仓库要求更新 `docs/progress.md` 和 `docs/validation.md`。已有历史验证记录不删除，只补充新的当前状态和证据。
 
-## Success Criteria
+## 完成标准
 
-This phase is complete when:
+本阶段完成时应满足：
 
-1. a fresh clone contains no generated rain WAV blob but can generate both derivatives with one documented command;
-2. both derivative paths and their transcode temporary files are ignored, and neither derivative is tracked;
-3. iOS CI generates audio, runs tests, builds the app, and refuses to upload an artifact missing any built-in sound;
-4. the automated checks pass from the cleaned history;
-5. physical-device smoke, two-boundary loop, lock-screen timer, background, route, import, persistence, and airplane-mode results are recorded accurately;
-6. defects found in those checks are fixed or explicitly documented as blockers;
-7. an eight-hour validation is completed or remains an explicitly scheduled final validation item;
-8. no Personal Team setting, credential, private audio, generated rain WAV, or unrelated Android change is committed;
-9. Git history is not rewritten.
+1. 全新 clone 不包含两个生成雨声 WAV，但可以通过一条文档命令生成；
+2. 两个最终 WAV 和转码临时文件均被忽略，两个最终 WAV 均未被 Git 跟踪；
+3. iOS CI 自动生成音频、运行测试、构建 App，并拒绝上传缺少任意内置声音的产物；
+4. 清理历史后的自动化检查全部通过；
+5. 真机基础短测、两次循环边界、锁屏定时、后台、音频路由、导入、数据保留和飞行模式结果得到准确记录；
+6. 真机检查发现的问题已经修复，或明确记录为阻塞项；
+7. 八小时测试已经完成，或者作为明确的最后验证任务保留；
+8. 没有提交 Personal Team 设置、凭据、私人音频、生成雨声 WAV 或无关 Android 修改；
+9. 不再次重写 Git 历史。
