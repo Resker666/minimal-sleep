@@ -154,4 +154,6 @@
 - `rain-01.m4a` 为 4,834,016 字节，SHA-256 `ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc`；`rain-04.m4a` 为 4,859,928 字节，SHA-256 `b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b`。两者均为 298 秒、AAC、44.1 kHz、双声道，并低于脚本的 6,500,000 字节单文件上限。
 - Homebrew Python 3.12.14 下 6 个 iOS 音频准备测试通过；在全新临时目录重新生成后，两个 M4A 和两份派生清单与工作区结果逐字节一致。
 - iPhone 18 Pro / iOS 27.0 模拟器执行 33 个 XCTest，0 失败；测试确认两个 M4A 可从主 Bundle 查找、可由 AVAudioPlayer 加载且时长为 298 秒。Release 模拟器构建成功，App 中有两段 M4A 和三段 WAV，旧雨声 WAV 不存在；App 目录约 18 MB，本机打包 ZIP 约 17 MB。
-- 本节不记录云端或真机通过。AAC 循环边界、真实扬声器听感、锁屏持续播放和整夜可靠性仍需真机验证。
+- [iOS 云端运行 #9](https://github.com/Resker666/minimal-sleep/actions/runs/35965815562) 在提交 `ebdc0da253b3` 上状态 Success，总耗时 7 分 39 秒；音频工具测试、M4A 生成与严格清单校验、33 个 XCTest、无签名 Release 构建、包内资源检查和上传全部为 success。Artifact `minimal-sleep-ios-simulator-9` 为 17,463,485 字节，外层摘要 `sha256:307068595dbe1ba0d0ac5d3dcf382482bf9369f13b026a33844029727312d9cf`，到期时间 2026-10-08 06:50:11 UTC；比 PCM 运行 #8 的 98,676,081 字节减少约 82.3%。
+- 同一提交的 [Android 云端运行 #26](https://github.com/Resker666/minimal-sleep/actions/runs/35965815557) 状态 Success；音频工具测试、Lint、JVM 单元测试、Debug APK 构建、校验和上传均通过，Android Ogg 资源未改动。
+- 本机使用 Personal Team 的通用 iPhone Debug 构建成功，`codesign --verify --deep --strict` 通过；设备当时已断开，因此未安装或启动。AAC 循环边界、真实扬声器听感、锁屏持续播放和整夜可靠性仍需真机验证。

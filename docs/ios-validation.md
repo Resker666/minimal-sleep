@@ -14,10 +14,12 @@
 | Release 模拟器构建 | `** BUILD SUCCEEDED **` | 通过 |
 | App 包资源 | 两段 M4A 和三段 WAV 均存在且非空；旧 `rain-01.wav`、`rain-04.wav` 不存在 | 通过 |
 | App/ZIP 大小 | App 目录约 18 MB；本机 `ditto` ZIP 约 17 MB | 通过 |
-| M4A GitHub Actions | 待推送后验证 | 未测 |
+| 签名的通用 iPhone 构建 | 使用本机 Personal Team 构建 Debug iPhone App；`codesign --verify --deep --strict` 通过，尚未安装到手机 | 通过 |
+| M4A GitHub Actions | [运行 #9](https://github.com/Resker666/minimal-sleep/actions/runs/35965815562)，提交 `ebdc0da253b3`，生成、清单、33 个 XCTest、Release 构建、资源检查和上传全部成功；总耗时 7 分 39 秒 | 通过 |
+| 云端 Artifact | `minimal-sleep-ios-simulator-9`，17,463,485 字节，摘要 `sha256:307068595dbe1ba0d0ac5d3dcf382482bf9369f13b026a33844029727312d9cf`，到期时间 2026-10-08 06:50:11 UTC | 通过 |
 | M4A 真机播放与两次循环 | 需要用户听感确认 | 未测 |
 
-AAC 是有损压缩。自动验证能够确认格式、时长、大小、哈希、Bundle 包含关系和 AVAudioPlayer 能加载，但不能证明真实扬声器上的循环接缝听不出。
+AAC 是有损压缩。自动验证能够确认格式、时长、大小、哈希、Bundle 包含关系和 AVAudioPlayer 能加载，但不能证明真实扬声器上的循环接缝听不出。运行 #9 的 Artifact 比运行 #8 的 PCM Artifact 减少约 82.3%；云端产物仍是未签名模拟器 App，不能安装到 iPhone。
 
 ## 2026-09-24 PCM WAV 基线复验
 
