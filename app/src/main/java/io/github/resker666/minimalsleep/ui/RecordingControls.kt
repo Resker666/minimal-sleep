@@ -29,6 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import io.github.resker666.minimalsleep.capture.RecordingService
 import io.github.resker666.minimalsleep.capture.RecordingUiState
+import io.github.resker666.minimalsleep.capture.CaptureSensitivity
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
 
 @Composable
@@ -36,6 +37,7 @@ fun RecordingControls(controller: MediaController?) {
     val context = LocalContext.current
     val state = RecordingUiState
     var playAlong by rememberSaveable { mutableStateOf(true) }
+    var highSensitivity by rememberSaveable { mutableStateOf(true) }
     var confirmStop by remember { mutableStateOf(false) }
 
     fun start() {
@@ -45,7 +47,12 @@ fun RecordingControls(controller: MediaController?) {
         } else state.startedPlayback = false
         ContextCompat.startForegroundService(
             context,
-            Intent(context, RecordingService::class.java).setAction(RecordingService.ACTION_START)
+            Intent(context, RecordingService::class.java)
+                .setAction(RecordingService.ACTION_START)
+                .putExtra(
+                    RecordingService.EXTRA_SENSITIVITY,
+                    if (highSensitivity) CaptureSensitivity.HIGH.name else CaptureSensitivity.STANDARD.name
+                )
         )
     }
 
@@ -68,6 +75,11 @@ fun RecordingControls(controller: MediaController?) {
                 Text("同时播放助眠声音")
                 Switch(checked = playAlong, onCheckedChange = { playAlong = it }, enabled = state.status == "STOPPED")
             }
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("高灵敏度（实验性）")
+                Switch(checked = highSensitivity, onCheckedChange = { highSensitivity = it }, enabled = state.status == "STOPPED")
+            }
+            Text("高灵敏度更容易保存较轻声音，也可能多录环境声；夜间效果仍需验证。", style = MaterialTheme.typography.bodySmall)
             Button(
                 onClick = {
                     if (state.status == "STOPPED") {

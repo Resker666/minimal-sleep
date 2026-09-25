@@ -21,11 +21,10 @@ Git 仓库含源码、三段原创生成 WAV、两段经作者 CC BY 4.0 授权�
 $env:JAVA_HOME = (Resolve-Path '.tools/jdk/jdk17.0.20_10').Path
 $env:ANDROID_HOME = (Resolve-Path '.tools/android-sdk-ready').Path
 $env:GRADLE_USER_HOME = (Join-Path (Resolve-Path '.tools').Path 'gradle-home')
-$env:MINIMAL_SLEEP_MAVEN_PROXY = 'http://127.0.0.1:8765/m2'
-& '.tools/gradle/gradle-8.13/bin/gradle.bat' --offline --no-daemon --console plain lintDebug testDebugUnitTest assembleDebug
+& '.tools/gradle/gradle-8.13/bin/gradle.bat' --offline --no-daemon --console plain '-Pkotlin.compiler.execution.strategy=in-process' lintDebug testDebugUnitTest assembleDebug
 ```
 
-2026-09-20 实测退出码 0，`.tools/offline-build-proxy-cache-check.log` 显示 `BUILD SUCCESSFUL in 41s`，58 个任务、47 个已是最新。`--offline` 禁止网络访问，**不需要启动本地代理**。仍设置 `MINIMAL_SLEEP_MAVEN_PROXY` 是因为现有 Gradle 缓存按当初下载时的仓库 URL 索引；移除该变量后同一缓存离线解析 Kotlin kapt 插件失败。新电脑不应照搬这个变量，除非确实启动了本地代理。
+2026-09-20 的旧缓存按本地代理 URL 索引，故当时离线构建仍需设置 `MINIMAL_SLEEP_MAVEN_PROXY`；这是旧缓存的特殊情况。2026-09-25 此工作区原 `.tools/` 已缺失，检查后重新恢复工具与官方仓库依赖缓存，随后**不设置代理变量**也能用上述命令离线完成 Lint、24 个单元测试和 APK 构建。`--offline` 禁止 Gradle 网络访问；若 `.tools/` 再次缺失，先查找已有工具或缓存，不要照搬旧路径而直接重复下载。
 
 如果此工作区新增依赖、缓存缺项且 Java 访问 Maven 出现 TLS 问题，可在另一个终端运行 `python tools/dev_maven_proxy.py`，保留上述代理环境变量并去掉 `--offline`。它仅绑定 `127.0.0.1:8765` 并从公开官方 Maven 仓库转发依赖。普通网络可直接使用 Wrapper 与 `settings.gradle.kts` 的官方仓库配置。
 

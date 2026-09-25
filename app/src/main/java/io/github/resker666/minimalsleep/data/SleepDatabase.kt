@@ -67,12 +67,27 @@ data class RecordingGap(
     val reason: String
 )
 
+@Entity(tableName = "capture_hours", primaryKeys = ["sessionId", "hourIndex"])
+data class CaptureHour(
+    val sessionId: String,
+    val hourIndex: Int,
+    val sensitivity: String,
+    val frameCount: Int,
+    val below3Count: Int,
+    val below6Count: Int,
+    val below12Count: Int,
+    val atLeast12Count: Int,
+    val candidateCount: Int,
+    val maxRms: Float
+)
+
 @Dao
 interface SleepDao {
     @Insert fun insertSession(session: SleepSession)
     @Insert fun insertEvent(event: SoundEvent)
     @Insert fun insertPlaybackInterval(interval: PlaybackInterval)
     @Insert fun insertGap(gap: RecordingGap)
+    @Insert fun insertCaptureHour(hour: CaptureHour)
     @Query("UPDATE sessions SET endedAtEpochMs = :endedAt, durationSamples = :samples, status = :status, endReason = :reason WHERE id = :id")
     fun endSession(id: String, endedAt: Long, samples: Long, status: String, reason: String?)
     @Query("UPDATE sessions SET status = 'INTERRUPTED', endedAtEpochMs = :now, endReason = '进程中断' WHERE status = 'RECORDING'")
@@ -93,6 +108,8 @@ interface SleepDao {
     fun playbackIntervals(id: String): List<PlaybackInterval>
     @Query("SELECT * FROM recording_gaps WHERE sessionId = :id")
     fun gaps(id: String): List<RecordingGap>
+    @Query("SELECT * FROM capture_hours WHERE sessionId = :id ORDER BY hourIndex")
+    fun captureHours(id: String): List<CaptureHour>
     @Query("DELETE FROM events WHERE id = :id")
     fun deleteEvent(id: String)
     @Query("DELETE FROM events WHERE sessionId = :id")
@@ -101,13 +118,15 @@ interface SleepDao {
     fun deletePlaybackIntervalsForSession(id: String)
     @Query("DELETE FROM recording_gaps WHERE sessionId = :id")
     fun deleteGapsForSession(id: String)
+    @Query("DELETE FROM capture_hours WHERE sessionId = :id")
+    fun deleteCaptureHoursForSession(id: String)
     @Query("DELETE FROM sessions WHERE id = :id")
     fun deleteSession(id: String)
 }
 
 @Database(
-    entities = [SleepSession::class, SoundEvent::class, PlaybackInterval::class, RecordingGap::class],
-    version = 2,
+    entities = [SleepSession::class, SoundEvent::class, PlaybackInterval::class, RecordingGap::class, CaptureHour::class],
+    version = 3,
     exportSchema = true
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -124,13 +143,24 @@ abstract class SleepDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE events ADD COLUMN classificationStatus TEXT NOT NULL DEFAULT 'LEGACY'")
             }
         }
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS capture_hours (
+                    sessionId TEXT NOT NULL, hourIndex INTEGER NOT NULL, sensitivity TEXT NOT NULL,
+                    frameCount INTEGER NOT NULL, below3Count INTEGER NOT NULL,
+                    below6Count INTEGER NOT NULL, below12Count INTEGER NOT NULL,
+                    atLeast12Count INTEGER NOT NULL, candidateCount INTEGER NOT NULL,
+                    maxRms REAL NOT NULL, PRIMARY KEY(sessionId, hourIndex)
+                )""".trimIndent())
+            }
+        }
 
         fun get(context: Context): SleepDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 SleepDatabase::class.java,
                 "minimal-sleep.db"
-            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
         }
     }
 }

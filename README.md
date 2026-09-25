@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-Android 已实现五种内置离线助眠声音、手机本地音频导入、后台播放、定时关闭、声音片段录制、夜间列表和原音回听。iOS 原生工程已可在 Xcode 27 构建，并实现五种内置声音、AVAudioPlayer 循环播放、后台 audio、锁屏播放/暂停、定时淡出、偏好保存和 MP3/M4A/WAV 私有导入；模拟器自动化测试已通过，真机播放、锁屏和整夜可靠性仍待验收。Android 本地 YAMNet 疑似分类的真实声音准确率也仍待验证。不提供睡眠评分、深睡或呼吸暂停结论。准确状态见 [Android 开发进度](docs/progress.md)、[Android 验证记录](docs/validation.md)、[iOS 进度](docs/ios-progress.md) 与 [iOS 验证记录](docs/ios-validation.md)。
+Android 已实现五种内置离线助眠声音、手机本地音频导入、后台播放、定时关闭、声音片段录制、夜间列表和原音回听。开发中的 Android v0.5.0 增加整夜时间轴、片段内拖动回听、可切换的高灵敏度与每小时采集音量统计；这些改进仍需整夜真机对照。iOS 原生工程已可在 Xcode 27 构建，并实现五种内置声音、AVAudioPlayer 循环播放、后台 audio、锁屏播放/暂停、定时淡出、偏好保存和 MP3/M4A/WAV 私有导入；模拟器自动化测试已通过，真机播放、锁屏和整夜可靠性仍待验收。Android 本地 YAMNet 疑似分类的真实声音准确率也仍待验证。不提供睡眠评分、深睡或呼吸暂停结论。准确状态见 [Android 开发进度](docs/progress.md)、[Android 验证记录](docs/validation.md)、[iOS 进度](docs/ios-progress.md) 与 [iOS 验证记录](docs/ios-validation.md)。
 
 ## 已实现
 

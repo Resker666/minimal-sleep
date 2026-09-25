@@ -15,11 +15,19 @@ android {
         applicationId = "io.github.resker666.minimalsleep"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.0-dev"
+        versionCode = 6
+        versionName = "0.5.0-dev"
+        manifestPlaceholders["appLabel"] = "极简睡眠"
     }
 
     buildTypes {
+        debug {
+            if (providers.gradleProperty("minimalSleepTrial").orNull == "true") {
+                applicationIdSuffix = ".trial"
+                versionNameSuffix = "-trial"
+                manifestPlaceholders["appLabel"] = "极简睡眠（试用）"
+            }
+        }
         release {
             isMinifyEnabled = false
         }

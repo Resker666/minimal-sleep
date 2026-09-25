@@ -34,6 +34,7 @@ class RecordingService : Service() {
     private val running = AtomicBoolean(false)
     private val stopRequested = AtomicBoolean(false)
     private var worker: Thread? = null
+    private var captureSensitivity = CaptureSensitivity.STANDARD
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,6 +51,9 @@ class RecordingService : Service() {
         }
         if (intent?.action != ACTION_START || !running.compareAndSet(false, true)) return START_NOT_STICKY
         stopRequested.set(false)
+        captureSensitivity = CaptureSensitivity.entries.firstOrNull {
+            it.name == intent.getStringExtra(EXTRA_SENSITIVITY)
+        } ?: CaptureSensitivity.STANDARD
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             running.set(false)
             RecordingUiState.error = "没有录音权限"
@@ -95,7 +99,8 @@ class RecordingService : Service() {
         var inserted = false
         val fileStore = AudioFileStore(File(filesDir, "recordings"))
         val segmenter = EventSegmenter(sampleRate = SAMPLE_RATE)
-        val detector = EnergyDetector()
+        val detector = EnergyDetector(captureSensitivity)
+        val stats = CaptureStatsCollector(sessionId, captureSensitivity)
         val closedIntervals = mutableListOf<PlaybackInterval>()
         var openInterval: OpenPlayback? = null
 
@@ -179,7 +184,9 @@ class RecordingService : Service() {
                 if (count <= 0) throw IOException("录音读取失败：$count")
                 observePlayback(sampleCursor)
                 val frame = buffer.copyOf(count)
-                segmenter.push(frame, detector.isCandidate(frame)).forEach(::saveSegment)
+                val observation = detector.observe(frame)
+                stats.add(sampleCursor, observation)?.let { dao.insertCaptureHour(it) }
+                segmenter.push(frame, observation.candidate).forEach(::saveSegment)
                 sampleCursor += count
                 if (sampleCursor >= nextSpaceCheck) {
                     ensureSpace(fileStore)
@@ -199,6 +206,7 @@ class RecordingService : Service() {
                     observePlayback(sampleCursor)
                     closePlayback(sampleCursor)
                     segmenter.finish().forEach(::saveSegment)
+                    stats.finish()?.let { dao?.insertCaptureHour(it) }
                     if (reason != null) dao?.insertGap(RecordingGap(UUID.randomUUID().toString(), sessionId, sampleCursor, reason))
                     dao?.endSession(sessionId, System.currentTimeMillis(), sampleCursor, if (reason == null) "COMPLETED" else "INTERRUPTED", reason)
                 } catch (finishError: Exception) {
@@ -230,6 +238,7 @@ class RecordingService : Service() {
     companion object {
         const val ACTION_START = "io.github.resker666.minimalsleep.START_RECORDING"
         const val ACTION_STOP = "io.github.resker666.minimalsleep.STOP_RECORDING"
+        const val EXTRA_SENSITIVITY = "io.github.resker666.minimalsleep.SENSITIVITY"
         private const val CHANNEL_ID = "recording"
         private const val NOTIFICATION_ID = 1201
         private const val SAMPLE_RATE = 16_000
