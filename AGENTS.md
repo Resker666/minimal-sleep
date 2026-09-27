@@ -5,7 +5,7 @@ This file applies to the whole repository. Read `README.md`, `docs/progress.md`,
 ## Build environment
 
 - The repository contains the Gradle wrapper, source, tests, and generated audio, but **not** a JDK, Android SDK, Gradle caches, build outputs, or APKs. `.tools/` and `deliverables/` are ignored. A fresh clone on another computer must obtain its own JDK 17, Android SDK API 36, Build Tools 35, Gradle distribution, and Maven dependencies.
-- In this existing Windows workspace, check whether `.tools/jdk/jdk17.0.20_10`, `.tools/android-sdk-ready`, `.tools/gradle/gradle-8.13`, and `.tools/gradle-home` still exist before downloading anything. See `docs/development-setup.md` for a verified offline command and the reason the cache needs `MINIMAL_SLEEP_MAVEN_PROXY` even with `--offline`.
+- In this existing Windows workspace, check whether `.tools/jdk/jdk17.0.20_10`, `.tools/android-sdk-ready`, `.tools/gradle/gradle-8.13`, and `.tools/gradle-home` still exist before downloading anything. See `docs/development-setup.md` for the verified offline command. The cache restored on 2026-09-25 works without `MINIMAL_SLEEP_MAVEN_PROXY`; an older cache required that variable because it was indexed by a local proxy URL.
 - Do not treat a successful build as proof of overnight reliability or sound classification. The natural sounds are procedural approximations; their subjective phone sound has not yet been confirmed.
 
 ## Project constraints
