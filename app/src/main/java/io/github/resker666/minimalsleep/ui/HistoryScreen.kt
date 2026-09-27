@@ -1,23 +1,18 @@
 package io.github.resker666.minimalsleep.ui
 
 import android.media.MediaPlayer
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,13 +49,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun HistoryScreen(modifier: Modifier = Modifier) {
+fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val fileStore = remember(context) { AudioFileStore(File(context.filesDir, "recordings")) }
     var refresh by remember { mutableIntStateOf(0) }
     var sessions by remember { mutableStateOf<List<SleepSession>>(emptyList()) }
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var events by remember { mutableStateOf<List<SoundEvent>>(emptyList()) }
     var intervals by remember { mutableStateOf<List<PlaybackInterval>>(emptyList()) }
     var gaps by remember { mutableStateOf<List<RecordingGap>>(emptyList()) }
@@ -83,7 +78,7 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(refresh, selectedId) {
+    LaunchedEffect(refresh, selectedId, recording) {
         try {
             val data = withContext(Dispatchers.IO) {
                 val dao = SleepDatabase.get(context).dao()
@@ -122,6 +117,7 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
         stopPlayback()
         try {
             val media = MediaPlayer()
+            player = media
             media.setDataSource(fileStore.path(event.fileName).absolutePath)
             media.prepare()
             media.setOnCompletionListener { stopPlayback() }
@@ -203,176 +199,257 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("记录", style = MaterialTheme.typography.headlineMedium)
-        Text("这里显示真实录音片段；没有片段不代表整晚安静。", style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = { refresh++ }) { Text("刷新") }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (selectedId == null) {
-            if (sessions.isEmpty()) Text("尚无记录")
-            sessions.forEach { session ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(formatStart(session), style = MaterialTheme.typography.titleMedium)
-                        Text("有效采集 ${session.durationSamples / 16_000} 秒 · ${session.status}")
-                        session.endReason?.let { Text("中断原因：$it") }
-                        Button(onClick = { selectedId = session.id }) { Text("查看片段") }
+    var deletingEvent by remember { mutableStateOf<SoundEvent?>(null) }
+    var deletingNight by remember { mutableStateOf<SleepSession?>(null) }
+    var detailsEvent by remember { mutableStateOf<SoundEvent?>(null) }
+    var diagnostics by remember(selectedId) { mutableStateOf(false) }
+    val session = sessions.firstOrNull { it.id == selectedId }
+    BackHandler(enabled = selectedId != null) { stopPlayback(); selectedId = null }
+    androidx.compose.runtime.key(selectedId) {
+        LazyColumn(modifier.fillMaxSize(), state = rememberLazyListState(),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                if (selectedId != null) TextButton(onClick = { stopPlayback(); selectedId = null }) {
+                    Icon(SleepIcons.Back, null, Modifier.size(18.dp)); Text("所有记录")
+                }
+                PageHeader(if (selectedId == null) "记录" else "这一晚", if (selectedId == null) "回听夜里的声音" else session?.let(::formatStart)) {
+                    TextButton(onClick = { refresh++ }) { Text("刷新") }
+                    if (selectedId == null) IconButton(onClick = onSettings) { Icon(SleepIcons.Settings, "设置") }
+                    else if (session != null) {
+                        var menu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(SleepIcons.More, "记录选项") }
+                            DropdownMenu(menu, { menu = false }) {
+                                DropdownMenuItem(text = { Text("删除整夜记录") }, enabled = !recording,
+                                    onClick = { menu = false; deletingNight = session })
+                            }
+                        }
                     }
                 }
             }
-        } else {
-            val session = sessions.firstOrNull { it.id == selectedId }
-            OutlinedButton(onClick = { stopPlayback(); selectedId = null }) { Text("返回夜间列表") }
-            if (session != null) {
-                Text(formatStart(session), style = MaterialTheme.typography.titleMedium)
-                Text("有效采集 ${session.durationSamples / 16_000} 秒；片段 ${events.size} 个，事件组 ${events.map { it.groupId }.distinct().size} 个")
-                Text("助眠声播放 ${SessionSummary.playbackSeconds(intervals, session.durationSamples)} 秒；与采集重叠时可能被麦克风录入")
-                val durationSeconds = session.durationSamples / 16_000f
-                val selectionSample = (selectedSeconds * 16_000).toLong()
-                val availableColor = MaterialTheme.colorScheme.primary
-                val affectedColor = MaterialTheme.colorScheme.error
-                val trackColor = MaterialTheme.colorScheme.surfaceVariant
-                Text("按时间找片段", style = MaterialTheme.typography.titleMedium)
-                Text("${NightTimeline.clockLabel(session.startedAtEpochMs, 0, session.startTimeZone)} — ${NightTimeline.clockLabel(session.startedAtEpochMs, session.durationSamples, session.startTimeZone)}")
-                Canvas(Modifier.fillMaxWidth().height(12.dp)) {
-                    drawRect(trackColor)
-                    if (session.durationSamples > 0) {
-                        events.forEach { event ->
-                            val x = size.width * event.startSample / session.durationSamples
-                            val width = maxOf(3.dp.toPx(), size.width * event.durationSamples / session.durationSamples)
-                            drawRect(
-                                color = if (event.playbackAffected) affectedColor else availableColor,
-                                topLeft = Offset(x, 0f), size = Size(width.coerceAtMost(size.width - x), size.height)
-                            )
-                        }
-                        val x = size.width * selectionSample / session.durationSamples
-                        drawLine(affectedColor, Offset(x, 0f), Offset(x, size.height), 2.dp.toPx())
+            error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+            if (selectedId == null) {
+                if (sessions.isEmpty()) item {
+                    SleepCard {
+                        Icon(SleepIcons.Library, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("还没有夜间记录", style = MaterialTheme.typography.titleLarge)
+                        Caption("在「今晚」开始记录，保存的声音会出现在这里。")
                     }
                 }
-                Slider(
-                    value = selectedSeconds.coerceIn(0f, durationSeconds.coerceAtLeast(0f)),
-                    onValueChange = { selectedSeconds = it },
-                    valueRange = 0f..durationSeconds.coerceAtLeast(1f),
-                    enabled = events.isNotEmpty() && !recording && durationSeconds > 0f,
-                    onValueChangeFinished = {
-                        val target = NightTimeline.targetAt(events, (selectedSeconds * 16_000).toLong())
-                        if (target == null) {
-                            stopPlayback()
-                            navigationMessage = "这个时间没有保存录音；可选附近片段。"
-                        } else {
-                            navigationMessage = null
-                            startPlayback(target.event, target.offsetMs)
-                        }
-                    }
-                )
-                Text("定位：${NightTimeline.clockLabel(session.startedAtEpochMs, selectionSample, session.startTimeZone)} · 彩色刻度为已保存片段，红色表示播放干扰。", style = MaterialTheme.typography.bodySmall)
-                navigationMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                if (navigationMessage != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        NightTimeline.previous(events, selectionSample)?.let { previous ->
-                            OutlinedButton(onClick = {
-                                selectedSeconds = previous.startSample / 16_000f
-                                navigationMessage = null
-                                startPlayback(previous)
-                            }) { Text("上一片段") }
-                        }
-                        NightTimeline.next(events, selectionSample)?.let { next ->
-                            OutlinedButton(onClick = {
-                                selectedSeconds = next.startSample / 16_000f
-                                navigationMessage = null
-                                startPlayback(next)
-                            }) { Text("下一片段") }
-                        }
-                    }
-                }
-                if (events.isNotEmpty()) {
-                    Text("疑似类别事件组（无播放干扰 / 有播放干扰）", style = MaterialTheme.typography.titleMedium)
-                    SessionSummary.countByLabel(events).forEach { (label, counts) ->
-                        Text("$label：${counts.unaffectedGroups} / ${counts.affectedGroups}")
-                    }
-                    Text("同一事件组可能有不同片段标签；计数不代表整晚发生次数。", style = MaterialTheme.typography.bodySmall)
-                }
-                if (intervals.isNotEmpty()) {
-                    Text("助眠声音播放区间", style = MaterialTheme.typography.titleMedium)
-                    intervals.forEach { interval ->
-                        Text("${interval.startSample / 16_000}–${interval.endSample / 16_000} 秒 · ${interval.soundId} · 应用音量 ${(interval.appVolume * 100).toInt()}%")
-                    }
-                }
-                gaps.forEach { gap -> Text("采集中断：${gap.startSample / 16_000} 秒后 · ${gap.reason}") }
-                if (captureHours.isNotEmpty()) {
-                    Text("采集音量诊断（只保存统计，不保存原音）", style = MaterialTheme.typography.titleMedium)
-                    captureHours.forEach { hour ->
-                        val belowFloor = if (hour.sensitivity == "HIGH")
-                            hour.below3Count + hour.below6Count
-                        else hour.below3Count + hour.below6Count + hour.below12Count
-                        val lowPercent = if (hour.frameCount > 0) belowFloor * 100 / hour.frameCount else 0
-                        val mode = if (hour.sensitivity == "HIGH") "高" else "标准"
-                        Text("第 ${hour.hourIndex + 1} 小时 · $mode 灵敏度 · 低于最低门槛 $lowPercent% · 触发帧 ${hour.candidateCount} · 峰值 ${"%.3f".format(hour.maxRms)}", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Text("这些数字只能排查录音输入与触发，不能判断是否有鼾声或梦话。", style = MaterialTheme.typography.bodySmall)
-                }
-                if (events.isEmpty()) Text("没有保存的片段；这不能证明没有鼾声或人声。")
-                events.forEach { event ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("${NightTimeline.clockLabel(session.startedAtEpochMs, event.startSample, session.startTimeZone)} · ${event.durationSamples / 16_000.0} 秒 · ${event.effectiveLabel()}")
-                            if (event.userLabel != null) Text("手动标签；模型原结果：${event.label}", style = MaterialTheme.typography.bodySmall)
-                            else if (event.effectiveLabel() != event.label) Text("模型候选：${event.label}；受播放干扰，按未确定统计。", style = MaterialTheme.typography.bodySmall)
-                            when (event.classificationStatus) {
-                                "READY" -> Text("本地模型 ${event.modelVersion} · 原标签 ${event.modelSourceLabel ?: "无"} · 未校准分数 ${event.modelScore?.let { "%.2f".format(it) } ?: "无"}", style = MaterialTheme.typography.bodySmall)
-                                "PENDING" -> Text("分类排队中；稍后刷新", style = MaterialTheme.typography.bodySmall)
-                                "LEGACY" -> Text("旧版录音，无自动分类", style = MaterialTheme.typography.bodySmall)
-                                else -> Text("自动分类未完成（${event.classificationStatus}）；仍可回听", style = MaterialTheme.typography.bodySmall)
+                items(sessions, key = { it.id }) { night ->
+                    SleepCard(Modifier.clickable { selectedId = night.id }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(formatStart(night), style = MaterialTheme.typography.titleMedium)
+                                Caption("有效采集 ${durationLabel(night.durationSamples / 16_000)} · ${statusLabel(night.status)}")
+                                night.endReason?.let { Text("中断：$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                             }
-                            if (event.playbackAffected) Text("播放声音期间，识别可能受影响", color = MaterialTheme.colorScheme.error)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
-                                    if (playingId == event.id) stopPlayback() else {
-                                        startPlayback(event)
-                                    }
-                                }, enabled = !recording) { Text(if (playingId == event.id) "停止" else "回听") }
-                                OutlinedButton(onClick = { deleteEvent(event) }, enabled = !recording) { Text("删除") }
-                                OutlinedButton(onClick = { editingId = if (editingId == event.id) null else event.id }, enabled = !recording) { Text("改标签") }
+                            Icon(SleepIcons.Chevron, "查看片段", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+                item { Caption("仅显示已保存的声音；没有片段不代表整晚安静。") }
+            } else if (session != null) {
+                item {
+                    SleepCard {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Caption("有效采集")
+                                Text(durationLabel(session.durationSamples / 16_000), style = MaterialTheme.typography.titleLarge)
                             }
-                            if (playingId == event.id && playingDurationMs > 0f) {
-                                Slider(
-                                    value = playingPositionMs.coerceIn(0f, playingDurationMs),
-                                    onValueChange = { draggingClip = true; playingPositionMs = it },
-                                    onValueChangeFinished = {
-                                        player?.seekTo(playingPositionMs.toLong(), MediaPlayer.SEEK_CLOSEST)
-                                        draggingClip = false
-                                    },
-                                    valueRange = 0f..playingDurationMs
-                                )
-                                Text("${(playingPositionMs / 1_000).toInt()} / ${(playingDurationMs / 1_000).toInt()} 秒", style = MaterialTheme.typography.bodySmall)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Caption("保存片段")
+                                Text("${events.size} 个", style = MaterialTheme.typography.titleLarge)
                             }
-                            if (editingId == event.id) {
-                                listOf("疑似鼾声", "人声/疑似梦话", "疑似咳嗽", "其他环境声音", "未确定").forEach { option ->
-                                    TextButton(onClick = { relabel(event, option) }) { Text(option) }
+                        }
+                        Caption("${statusLabel(session.status)} · ${events.map { it.groupId }.distinct().size} 个事件组")
+                        session.endReason?.let { Text("中断原因：$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        if (gaps.isNotEmpty()) Text("存在 ${gaps.size} 处采集中断，详情见采集诊断。", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                item {
+                    val durationSeconds = session.durationSamples / 16_000f
+                    val selectionSample = (selectedSeconds * 16_000).toLong()
+                    val availableColor = MaterialTheme.colorScheme.primary
+                    val affectedColor = MaterialTheme.colorScheme.error
+                    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    SleepCard {
+                        Text("按时间回听", style = MaterialTheme.typography.titleMedium)
+                        Text(NightTimeline.clockLabel(session.startedAtEpochMs, selectionSample, session.startTimeZone), style = MaterialTheme.typography.headlineSmall)
+                        Canvas(Modifier.fillMaxWidth().height(20.dp)) {
+                            drawRect(trackColor)
+                            if (session.durationSamples > 0) {
+                                events.forEach { event ->
+                                    val x = (size.width * event.startSample / session.durationSamples).coerceIn(0f, size.width)
+                                    val width = maxOf(3.dp.toPx(), size.width * event.durationSamples / session.durationSamples)
+                                    drawRect(if (event.playbackAffected) affectedColor else availableColor,
+                                        Offset(x, 0f), Size(width.coerceAtMost(size.width - x), size.height))
                                 }
-                                TextButton(onClick = { relabel(event, null) }) { Text("恢复模型标签") }
+                                val x = (size.width * selectionSample / session.durationSamples).coerceIn(0f, size.width)
+                                drawLine(availableColor, Offset(x, 0f), Offset(x, size.height), 2.dp.toPx())
+                            }
+                        }
+                        Slider(value = selectedSeconds.coerceIn(0f, durationSeconds.coerceAtLeast(0f)),
+                            onValueChange = { selectedSeconds = it }, valueRange = 0f..durationSeconds.coerceAtLeast(1f),
+                            enabled = events.isNotEmpty() && !recording && durationSeconds > 0f,
+                            modifier = Modifier.semantics { contentDescription = "整夜时间轴" },
+                            onValueChangeFinished = {
+                                val target = NightTimeline.targetAt(events, (selectedSeconds * 16_000).toLong())
+                                if (target == null) { stopPlayback(); navigationMessage = "这个时间没有保存录音，可选择附近片段。" }
+                                else { navigationMessage = null; startPlayback(target.event, target.offsetMs) }
+                            })
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Caption(NightTimeline.clockLabel(session.startedAtEpochMs, 0, session.startTimeZone))
+                            Caption(NightTimeline.clockLabel(session.startedAtEpochMs, session.durationSamples, session.startTimeZone))
+                        }
+                        Caption("拖动后松手回听 · 蓝色为片段，红色有播放干扰")
+                        navigationMessage?.let { Caption(it) }
+                        if (navigationMessage != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NightTimeline.previous(events, selectionSample)?.let { previous ->
+                                TextButton(onClick = { selectedSeconds = previous.startSample / 16_000f; navigationMessage = null; startPlayback(previous) }) { Text("上一片段") }
+                            }
+                            NightTimeline.next(events, selectionSample)?.let { next ->
+                                TextButton(onClick = { selectedSeconds = next.startSample / 16_000f; navigationMessage = null; startPlayback(next) }) { Text("下一片段") }
                             }
                         }
                     }
                 }
-                if (recording) Text("结束当前记录后可回听或删除片段。")
-                OutlinedButton(onClick = { deleteSession(session) }, enabled = !recording) { Text("删除整夜记录") }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("声音片段", style = MaterialTheme.typography.titleLarge)
+                        TextButton(onClick = { diagnostics = !diagnostics }) { Text(if (diagnostics) "收起详情" else "采集详情") }
+                    }
+                    if (recording) Caption("结束当前记录后可回听和管理片段。")
+                    if (events.isEmpty()) Caption("没有保存的片段；这不能证明没有鼾声或人声。")
+                }
+                if (diagnostics) item { CaptureDetails(session, events, intervals, gaps, captureHours) }
+                items(events, key = { it.id }) { event ->
+                    SleepCard {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(event.effectiveLabel(), style = MaterialTheme.typography.titleMedium)
+                                Caption("${NightTimeline.clockLabel(session.startedAtEpochMs, event.startSample, session.startTimeZone)} · ${durationLabel(event.durationSamples / 16_000)}")
+                            }
+                            FilledTonalIconButton(enabled = !recording, onClick = {
+                                if (playingId == event.id) stopPlayback() else {
+                                    selectedSeconds = event.startSample / 16_000f
+                                    navigationMessage = null
+                                    startPlayback(event)
+                                }
+                            }) { Icon(if (playingId == event.id) SleepIcons.Pause else SleepIcons.Play, if (playingId == event.id) "停止回听" else "回听片段") }
+                            var menu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { menu = true }) { Icon(SleepIcons.More, "片段选项") }
+                                DropdownMenu(menu, { menu = false }) {
+                                    DropdownMenuItem(text = { Text("识别详情") }, onClick = { menu = false; detailsEvent = event })
+                                    DropdownMenuItem(text = { Text("修改标签") }, enabled = !recording, onClick = { menu = false; editingId = event.id })
+                                    DropdownMenuItem(text = { Text("删除片段") }, enabled = !recording, onClick = { menu = false; deletingEvent = event })
+                                }
+                            }
+                        }
+                        if (event.playbackAffected) Text("播放干扰 · 识别可能受影响", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        if (event.userLabel != null) Caption("手动标签")
+                        if (event.classificationStatus != "READY") Caption(when (event.classificationStatus) {
+                            "PENDING" -> "分类排队中，稍后刷新"
+                            "LEGACY" -> "旧版录音，无自动分类"
+                            else -> "分类未完成，仍可回听"
+                        })
+                        if (playingId == event.id && playingDurationMs > 0f) {
+                            Slider(value = playingPositionMs.coerceIn(0f, playingDurationMs),
+                                onValueChange = { draggingClip = true; playingPositionMs = it },
+                                onValueChangeFinished = { player?.seekTo(playingPositionMs.toLong(), MediaPlayer.SEEK_CLOSEST); draggingClip = false },
+                                valueRange = 0f..playingDurationMs, modifier = Modifier.semantics { contentDescription = "片段播放进度" })
+                            Caption("${(playingPositionMs / 1_000).toInt()} / ${(playingDurationMs / 1_000).toInt()} 秒")
+                        }
+                    }
+                }
+                item { Caption("类别为本地模型的疑似结果，可在片段菜单中查看依据或手动修改。") }
             }
         }
     }
+    events.firstOrNull { it.id == editingId }?.let { event ->
+        SleepSheet("修改标签", onDismiss = { editingId = null }) {
+            Caption("此修改只影响当前片段，模型原始结果会保留。")
+            listOf("疑似鼾声", "人声/疑似梦话", "疑似咳嗽", "其他环境声音", "未确定").forEach { label ->
+                TextButton(onClick = { relabel(event, label) }, enabled = !recording, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            }
+            TextButton(onClick = { relabel(event, null) }, enabled = !recording) { Text("恢复模型标签") }
+        }
+    }
+    detailsEvent?.let { event ->
+        SleepSheet("识别详情", onDismiss = { detailsEvent = null }) {
+            SleepCard {
+                Text(event.effectiveLabel(), style = MaterialTheme.typography.titleLarge)
+                if (event.userLabel != null) Caption("当前使用手动标签")
+                Caption("模型原结果：${event.label}")
+                if (event.playbackAffected) Text("存在播放干扰，模型结果可能受影响。", color = MaterialTheme.colorScheme.error)
+                Caption("模型版本：${event.modelVersion ?: "无"}\n原标签：${event.modelSourceLabel ?: "无"}\n未校准分数：${event.modelScore?.let { "%.2f".format(it) } ?: "无"}\n分类状态：${event.classificationStatus}")
+                Caption("分数不是准确率，疑似类别不能作为医学判断。")
+            }
+        }
+    }
+    deletingEvent?.let { event ->
+        AlertDialog(onDismissRequest = { deletingEvent = null }, title = { Text("删除这个片段？") },
+            text = { Text("这段录音将从本机永久删除。") },
+            confirmButton = { TextButton(enabled = !recording, onClick = { deleteEvent(event); deletingEvent = null }) { Text("删除") } },
+            dismissButton = { TextButton(onClick = { deletingEvent = null }) { Text("取消") } })
+    }
+    deletingNight?.let { night ->
+        AlertDialog(onDismissRequest = { deletingNight = null }, title = { Text("删除整夜记录？") },
+            text = { Text("这晚的所有声音片段和记录将从本机永久删除。") },
+            confirmButton = { TextButton(enabled = !recording, onClick = { deleteSession(night); deletingNight = null }) { Text("删除") } },
+            dismissButton = { TextButton(onClick = { deletingNight = null }) { Text("取消") } })
+    }
 }
 
-private data class HistoryData(
-    val sessions: List<SleepSession>, val events: List<SoundEvent>,
-    val intervals: List<PlaybackInterval>, val gaps: List<RecordingGap>,
-    val captureHours: List<CaptureHour>
-)
+@Composable
+private fun CaptureDetails(session: SleepSession, events: List<SoundEvent>, intervals: List<PlaybackInterval>, gaps: List<RecordingGap>, hours: List<CaptureHour>) {
+    SleepCard {
+        Text("采集详情", style = MaterialTheme.typography.titleMedium)
+        Caption("助眠声播放 ${durationLabel(SessionSummary.playbackSeconds(intervals, session.durationSamples))}，重叠时可能被麦克风录入。")
+        SessionSummary.countByLabel(events).forEach { (label, counts) ->
+            Caption("$label · 无干扰 ${counts.unaffectedGroups} / 有干扰 ${counts.affectedGroups} 个事件组")
+        }
+        Caption("同一事件组可能有不同标签，计数不代表整晚发生次数。")
+        if (intervals.isNotEmpty()) Text("助眠声播放区间", style = MaterialTheme.typography.titleSmall)
+        intervals.forEach { interval ->
+            Caption("${NightTimeline.clockLabel(session.startedAtEpochMs, interval.startSample, session.startTimeZone)} — ${NightTimeline.clockLabel(session.startedAtEpochMs, interval.endSample, session.startTimeZone)}\n${soundLabel(interval.soundId)} · 音量 ${(interval.appVolume * 100).toInt()}%")
+        }
+        gaps.forEach { gap -> Caption("采集中断：${NightTimeline.clockLabel(session.startedAtEpochMs, gap.startSample, session.startTimeZone)} · ${gap.reason}") }
+        if (hours.isNotEmpty()) Text("每小时音量诊断", style = MaterialTheme.typography.titleSmall)
+        hours.forEach { hour ->
+            val belowFloor = if (hour.sensitivity == "HIGH") hour.below3Count + hour.below6Count else hour.below3Count + hour.below6Count + hour.below12Count
+            val percent = if (hour.frameCount > 0) belowFloor * 100 / hour.frameCount else 0
+            Caption("第 ${hour.hourIndex + 1} 小时 · ${if (hour.sensitivity == "HIGH") "高" else "标准"}灵敏度\n低于最低门槛 $percent% · 触发帧 ${hour.candidateCount} · 峰值 ${"%.3f".format(hour.maxRms)}")
+        }
+        Caption("诊断只记录统计，不保存原音；不能据此判断是否有鼾声或梦话。")
+    }
+}
 
-private fun formatStart(session: SleepSession): String {
-    val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
-    format.timeZone = TimeZone.getTimeZone(session.startTimeZone)
-    return format.format(Date(session.startedAtEpochMs))
+private data class HistoryData(val sessions: List<SleepSession>, val events: List<SoundEvent>,
+    val intervals: List<PlaybackInterval>, val gaps: List<RecordingGap>, val captureHours: List<CaptureHour>)
+
+private fun formatStart(session: SleepSession): String = SimpleDateFormat("yyyy年M月d日 · HH:mm", Locale.CHINA).apply {
+    timeZone = TimeZone.getTimeZone(session.startTimeZone)
+}.format(Date(session.startedAtEpochMs))
+
+private fun durationLabel(seconds: Long): String = when {
+    seconds >= 3600 -> "${seconds / 3600} 小时 ${seconds % 3600 / 60} 分"
+    seconds >= 60 -> "${seconds / 60} 分 ${seconds % 60} 秒"
+    else -> "$seconds 秒"
+}
+private fun statusLabel(status: String): String = when (status) {
+    "COMPLETED" -> "已完成"
+    "RECORDING" -> "记录中"
+    "INTERRUPTED" -> "已中断"
+    else -> "状态未知"
+}
+private fun soundLabel(id: String): String = when (id) {
+    "LOCAL_RAIN_HEAVY" -> "大雨剪辑"
+    "LOCAL_RAIN_THUNDER" -> "雨雷剪辑"
+    "HEAVY_RAIN" -> "合成大雨"
+    "OCEAN_WAVES" -> "合成海浪"
+    "WHITE" -> "白噪声"
+    else -> "本地音频（$id）"
 }

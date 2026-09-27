@@ -175,3 +175,16 @@
 - 用已导出的 Room v2 schema 构造**合成**数据库（1 个合成会话和 1 个元数据片段，不含任何真实录音），`PRAGMA user_version=2`；本机 SQL 检查确认迁移后原两行存在，`capture_hours` 10 列与生成的 v3 schema 一致。首次 `adb install -r` 试用包返回 `INSTALL_FAILED_USER_RESTRICTED`；用户允许 USB 安装后重试返回 `Success`。把合成旧库放入独立试用包，打开记录页可见原合成会话和片段，关闭后只读取该**合成**私有数据库核对 `PRAGMA user_version=3`、原两行仍在、`capture_hours` 表可查询。没有对真实旧库注入数据。
 - 清除试用包的合成数据后，新建 91 秒短录音：`COMPLETED`、3 个片段/事件组、雨声播放区间 37 秒，首片段显示播放干扰；“采集音量诊断”显示高灵敏度、第 1 小时低于最低门槛 32%、触发帧 407、最大 RMS 0.124。模型对无播放干扰片段出现“人声/疑似梦话”候选，未用真实标注判断正误；不能声称分类变准。时间轴拖到无保存片段区间时显示“这个时间没有保存录音”及上一/下一片段，片段内拖动后 UI 显示播放位置 11/15 秒。短测结束停止播放；试用包中产生的 3 个测试片段未复制到电脑。
 - `adb install -r deliverables/minimal-sleep-v0.5.0-dev-debug.apk` 覆盖原 App 返回 `Success`；`dumpsys package` 为 versionCode 6 / `0.5.0-dev`，手机 `base.apk` SHA-256 与本地标准包一致。真实旧记录页正常打开 2026-09-23 00:11 的 26,569 秒/1 片段会话，显示 893 秒助眠声播放；时间轴从 00:11 到 07:34，拖到约 03:47 提示该时段没有保存录音。`run-as` 列目录计数在更新前后均为 **66** 个 WAV 文件。独立试用包完成测试后已卸载，手机只保留正式包。真实旧库的 Room 迁移与展示因此经真机验证；未读取或复制用户 WAV。尚缺按同一放置方式的整夜高灵敏度对照、逐小时统计和真实标注样本的误报/漏报评估。
+
+
+## 2026-09-27 Android 界面 A 方案
+
+- 用户选择 A：浅灰/深灰分组卡片、蓝色操作、系统字体、今晚/记录双页。分支 `codex/android-minimal-ui` 从 `416c6aa` 建立。改动限 Android Compose、Android 版本号及相关说明；未改 iOS 工程、Room schema、录音与分类算法、音频资源。界面结构和手工用例见 [android-ui.md](android-ui.md)。
+- 本机 `.tools/jdk/jdk17.0.20_10`、`.tools/android-sdk-ready`、`.tools/gradle/gradle-8.13`、`.tools/gradle-home` 均已存在，直接复用；本轮没有下载环境或添加依赖。命令：`gradle.bat --offline --no-daemon --console plain -Pkotlin.compiler.execution.strategy=in-process lintDebug testDebugUnitTest assembleDebug`。最终退出码 0，`BUILD SUCCESSFUL in 53s`，58 个任务（16 executed / 42 up-to-date）。JUnit XML 汇总 **24 tests / 0 failures / 0 errors / 0 skipped**；Lint **0 errors / 10 warnings**，包括既有 targetSdk、导出媒体服务、Kapt、存储及 KTX 建议。仅界面排列/样式与偏好改动，未新增复刻实现的测试；尚不能以编译替代 UI 验收。
+- 最终 APK：`deliverables/minimal-sleep-v0.6.0-dev-debug.apk`，55,920,107 字节，SHA-256 `64F35D3AB31953EE5911975E9843AE37B9FFCF6BF2270394D7DAC20068E82234`；同目录有 `.apk.sha256` 文件。包名 `io.github.resker666.minimalsleep`，versionCode 7 / `0.6.0-dev`，minSdk 26、targetSdk 35。`apksigner verify --verbose --print-certs` 验证 v2 签名有效；证书 SHA-256 `645b0dbc952ac939815d8754cd4ebac07d38e53f25759c331368417a49cc7a2f`，沿用本机调试签名。`aapt2 dump permissions` 未列 `INTERNET`。
+- 连接设备 `e2f1a08` / `23127PN0CC`，最终 APK `adb install -r` 返回 `Success`；`dumpsys package` 显示 code 7 / `0.6.0-dev`。安装前后只用 `run-as ... ls files/recordings` 计数，均为 **37** 个文件；未读取、复制或上传 WAV，未卸载原 App、未清除数据、未新增或删除录音。本轮 37 与 9 月 25 日历史记录的 66 是不同时点的实测，不把二者差额归因于本次升级。
+- 尝试启动 Activity，设备要求密码/指纹解锁。`wm dismiss-keyguard` 不能解锁受保护锁屏，UI dump 仍显示密码锁屏；已向用户请求手动解锁。没有尝试绕过密码，未把黑色锁屏截图当成 App UI 证据。**新版页面外观、浅/深/系统主题、弹层、偏好重启保持、大字体、导入及录音/回听回归尚未执行。**
+- 独立只读代码审查未发现本次引入的严重或重要问题；已将回声说明明确为“干扰标记不代表回声消除”，并为开关及进度条加入无障碍标签。审查不代替真机视觉和操作验证。
+- 未推送或公开发布本轮 APK。整夜可靠性、识别准确率、固定云端签名及既有 M3–M5 待办仍未完成；本次 UI 更新不能证明这些项目通过。
+- 后续用户反馈“看着可以，验证通过”：记录为 **用户确认新版 UI 验收通过**，证据来源为用户反馈。前述代理受锁屏限制的记录保留；未收到浅/深主题、大字体、导入、回听等逐项结果，不据此补记这些专项测试或整夜识别验收通过。
+- 用户随后授权推送并合入主干。提交前重新运行离线 `lintDebug testDebugUnitTest assembleDebug`：退出码 0、25 秒，58 个任务（1 executed / 57 up-to-date）；输入未变，JUnit/Lint 使用既有有效结果。重新运行 `python -m unittest discover -s tools -p 'test_*.py' -v`：16 tests、3.501 秒、OK。已获取最新 `origin/main`，仍为 `cb950c3`，待集成范围包含 `416c6aa` 录音/时间轴提交及本轮 UI；未改 iOS 文件。云端检查和最终合并状态以对应 PR / Actions 为准。
