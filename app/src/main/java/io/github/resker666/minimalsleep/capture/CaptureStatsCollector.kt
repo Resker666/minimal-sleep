@@ -46,7 +46,7 @@ class CaptureStatsCollector(
 
     fun finish(): CaptureHour? = snapshot().also { hourIndex = null; frameCount = 0 }
 
-    private fun snapshot(): CaptureHour? {
+    fun snapshot(): CaptureHour? {
         val index = hourIndex ?: return null
         if (frameCount == 0) return null
         return CaptureHour(

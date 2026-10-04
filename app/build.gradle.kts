@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.resker666.minimalsleep"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.6.0-dev"
+        versionCode = 8
+        versionName = "0.6.1-dev"
         manifestPlaceholders["appLabel"] = "极简睡眠"
     }
 

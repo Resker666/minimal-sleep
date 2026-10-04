@@ -241,7 +241,7 @@ class SoundPlaybackService : MediaSessionService() {
                 }
                 ACTION_TIMER -> {
                     val minutes = args.getInt(KEY_MINUTES, -1).takeIf { it != -1 }
-                    if (minutes != null && minutes !in listOf(15, 30, 60, 90)) {
+                    if (!SleepTimer.isValidMinutes(minutes)) {
                         return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
                     }
                     selectedTimerMinutes = minutes
