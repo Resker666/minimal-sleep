@@ -13,9 +13,11 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.github.resker666.minimalsleep.data.AudioFileStore
+import io.github.resker666.minimalsleep.data.DeviceBoot
 import io.github.resker666.minimalsleep.data.PlaybackInterval
 import io.github.resker666.minimalsleep.data.RecordingGap
 import io.github.resker666.minimalsleep.data.SleepDao
@@ -92,6 +94,7 @@ class RecordingService : Service() {
     private fun recordNight() {
         val sessionId = UUID.randomUUID().toString()
         var sampleCursor = 0L
+        var lastCaptureAt: Long? = null
         var reason: String? = null
         var recorder: AudioRecord? = null
         var dao: SleepDao? = null
@@ -108,7 +111,7 @@ class RecordingService : Service() {
             val open = openInterval ?: return
             if (endSample > open.startSample) {
                 val interval = PlaybackInterval(
-                    UUID.randomUUID().toString(), sessionId, open.soundId,
+                    open.id, sessionId, open.soundId,
                     open.volume, open.startSample, endSample
                 )
                 dao?.insertPlaybackInterval(interval)
@@ -124,7 +127,14 @@ class RecordingService : Service() {
             val volume = state.appVolume
             val current = openInterval
             if (current != null && (!playing || current.soundId != sound || current.volume != volume)) closePlayback(atSample)
-            if (playing && openInterval == null) openInterval = OpenPlayback(sound, volume, atSample)
+            if (playing && openInterval == null) openInterval = OpenPlayback(UUID.randomUUID().toString(), sound, volume, atSample)
+        }
+
+        fun checkpoint() {
+            val interval = openInterval?.takeIf { sampleCursor > it.startSample }?.let {
+                PlaybackInterval(it.id, sessionId, it.soundId, it.volume, it.startSample, sampleCursor)
+            }
+            checkNotNull(dao).checkpointProgress(sessionId, sampleCursor, lastCaptureAt, interval, stats.snapshot())
         }
 
         fun saveSegment(segment: AudioSegment) {
@@ -153,8 +163,9 @@ class RecordingService : Service() {
             dao = SleepDatabase.get(this).dao()
             RecordingUiState.classifierStatus = "WAITING"
             classifierWorker = EventClassificationWorker(this, dao)
-            dao.markStaleInterrupted(System.currentTimeMillis())
-            dao.insertSession(SleepSession(sessionId, System.currentTimeMillis(), TimeZone.getDefault().id))
+            val bootCount = DeviceBoot.count(this)
+            dao.recoverInterrupted(System.currentTimeMillis(), bootCount)
+            dao.insertSession(SleepSession(sessionId, System.currentTimeMillis(), TimeZone.getDefault().id, startBootCount = bootCount))
             inserted = true
             ensureSpace(fileStore)
             val minBytes = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
@@ -179,15 +190,22 @@ class RecordingService : Service() {
             RecordingUiState.status = "RECORDING"
             val buffer = ShortArray(1024)
             var nextSpaceCheck = SAMPLE_RATE.toLong() * 60L
+            var nextCheckpointAt = SystemClock.elapsedRealtime() + CHECKPOINT_MILLIS
             while (running.get()) {
                 val count = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
                 if (count <= 0) throw IOException("录音读取失败：$count")
+                lastCaptureAt = System.currentTimeMillis()
                 observePlayback(sampleCursor)
                 val frame = buffer.copyOf(count)
                 val observation = detector.observe(frame)
                 stats.add(sampleCursor, observation)?.let { dao.insertCaptureHour(it) }
                 segmenter.push(frame, observation.candidate).forEach(::saveSegment)
                 sampleCursor += count
+                val elapsedNow = SystemClock.elapsedRealtime()
+                if (elapsedNow >= nextCheckpointAt) {
+                    checkpoint()
+                    nextCheckpointAt = elapsedNow + CHECKPOINT_MILLIS
+                }
                 if (sampleCursor >= nextSpaceCheck) {
                     ensureSpace(fileStore)
                     nextSpaceCheck += SAMPLE_RATE.toLong() * 60L
@@ -203,6 +221,7 @@ class RecordingService : Service() {
             if (reason == null && !stopRequested.get()) reason = "服务被系统中断"
             if (inserted) {
                 try {
+                    checkpoint()
                     observePlayback(sampleCursor)
                     closePlayback(sampleCursor)
                     segmenter.finish().forEach(::saveSegment)
@@ -233,7 +252,7 @@ class RecordingService : Service() {
         super.onDestroy()
     }
 
-    private data class OpenPlayback(val soundId: String, val volume: Float, val startSample: Long)
+    private data class OpenPlayback(val id: String, val soundId: String, val volume: Float, val startSample: Long)
 
     companion object {
         const val ACTION_START = "io.github.resker666.minimalsleep.START_RECORDING"
@@ -242,5 +261,6 @@ class RecordingService : Service() {
         private const val CHANNEL_ID = "recording"
         private const val NOTIFICATION_ID = 1201
         private const val SAMPLE_RATE = 16_000
+        private const val CHECKPOINT_MILLIS = 10_000L
     }
 }

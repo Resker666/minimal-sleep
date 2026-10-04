@@ -45,4 +45,30 @@ class SleepTimerTest {
             assertEquals(minutes * 60_000L, timer.remainingMillis())
         }
     }
+
+    @Test fun `five and six minute timers fade and stop at their own deadlines`() {
+        for (minutes in listOf(5, 6)) {
+            timer.setMinutes(minutes)
+            assertEquals(minutes * 60_000L, timer.remainingMillis())
+            now += minutes * 60_000L - 5_000L
+            assertEquals(0.5f, timer.gain(), 0.0001f)
+            assertFalse(timer.isExpired())
+            now += 5_000L
+            assertTrue(timer.isExpired())
+        }
+    }
+
+    @Test fun `custom duration accepts single minutes and rejects invalid values`() {
+        timer.setMinutes(1)
+        assertEquals(60_000L, timer.remainingMillis())
+        timer.setMinutes(720)
+        assertEquals(43_200_000L, timer.remainingMillis())
+        for (invalid in listOf(-1, 0, 721, Int.MAX_VALUE)) {
+            try {
+                timer.setMinutes(invalid)
+                throw AssertionError("Accepted invalid duration: $invalid")
+            } catch (_: IllegalArgumentException) { }
+        }
+        assertEquals(43_200_000L, timer.remainingMillis())
+    }
 }

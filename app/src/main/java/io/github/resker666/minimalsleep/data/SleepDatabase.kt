@@ -6,10 +6,13 @@ import androidx.room.Database
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
+import androidx.room.Update
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -21,7 +24,10 @@ data class SleepSession(
     val endedAtEpochMs: Long? = null,
     val durationSamples: Long = 0,
     val status: String = "RECORDING",
-    val endReason: String? = null
+    val endReason: String? = null,
+    val lastCaptureAtEpochMs: Long? = null,
+    val recoveredAtEpochMs: Long? = null,
+    val startBootCount: Int? = null
 )
 
 @Entity(tableName = "events")
@@ -85,13 +91,32 @@ data class CaptureHour(
 interface SleepDao {
     @Insert fun insertSession(session: SleepSession)
     @Insert fun insertEvent(event: SoundEvent)
-    @Insert fun insertPlaybackInterval(interval: PlaybackInterval)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) fun insertPlaybackInterval(interval: PlaybackInterval)
     @Insert fun insertGap(gap: RecordingGap)
-    @Insert fun insertCaptureHour(hour: CaptureHour)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) fun insertCaptureHour(hour: CaptureHour)
     @Query("UPDATE sessions SET endedAtEpochMs = :endedAt, durationSamples = :samples, status = :status, endReason = :reason WHERE id = :id")
     fun endSession(id: String, endedAt: Long, samples: Long, status: String, reason: String?)
-    @Query("UPDATE sessions SET status = 'INTERRUPTED', endedAtEpochMs = :now, endReason = '进程中断' WHERE status = 'RECORDING'")
-    fun markStaleInterrupted(now: Long)
+    @Query("UPDATE sessions SET durationSamples = MAX(durationSamples, :samples), lastCaptureAtEpochMs = :capturedAt WHERE id = :id AND status = 'RECORDING'")
+    fun checkpointSession(id: String, samples: Long, capturedAt: Long?)
+    @Update fun updateSession(session: SleepSession)
+
+    @Transaction
+    fun checkpointProgress(id: String, samples: Long, capturedAt: Long?, interval: PlaybackInterval?, hour: CaptureHour?) {
+        interval?.let(::insertPlaybackInterval)
+        hour?.let(::insertCaptureHour)
+        checkpointSession(id, samples, capturedAt)
+    }
+
+    /** Caller must ensure no capture worker is running. */
+    @Transaction
+    fun recoverInterrupted(now: Long, currentBootCount: Int?) {
+        sessions().filter(SessionRecovery::needsRecovery).forEach { session ->
+            updateSession(SessionRecovery.recover(
+                session, events(session.id), playbackIntervals(session.id), gaps(session.id), captureHours(session.id),
+                now, currentBootCount
+            ))
+        }
+    }
     @Query("SELECT * FROM sessions ORDER BY startedAtEpochMs DESC")
     fun sessions(): List<SleepSession>
     @Query("SELECT * FROM events WHERE sessionId = :id ORDER BY startSample")
@@ -126,7 +151,7 @@ interface SleepDao {
 
 @Database(
     entities = [SleepSession::class, SoundEvent::class, PlaybackInterval::class, RecordingGap::class, CaptureHour::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -154,13 +179,20 @@ abstract class SleepDatabase : RoomDatabase() {
                 )""".trimIndent())
             }
         }
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN lastCaptureAtEpochMs INTEGER")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN recoveredAtEpochMs INTEGER")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN startBootCount INTEGER")
+            }
+        }
 
         fun get(context: Context): SleepDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 SleepDatabase::class.java,
                 "minimal-sleep.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
         }
     }
 }

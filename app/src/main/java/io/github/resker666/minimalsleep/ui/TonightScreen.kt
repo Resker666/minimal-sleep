@@ -5,19 +5,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import io.github.resker666.minimalsleep.playback.PlaybackUiState
 import io.github.resker666.minimalsleep.playback.SoundPlaybackService
+import io.github.resker666.minimalsleep.playback.SleepTimer
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -87,17 +93,36 @@ private fun timerLabel(): String {
 
 @Composable
 internal fun TimerSheet(controller: MediaController?, onDismiss: () -> Unit) {
+    var customMinutes by rememberSaveable { mutableStateOf(PlaybackUiState.timerMinutes?.toString() ?: "") }
+    val value = customMinutes.toIntOrNull()
+    val valid = value != null && SleepTimer.isValidMinutes(value)
+    fun applyTimer(minutes: Int?) {
+        controller?.sendCustomCommand(SessionCommand(SoundPlaybackService.ACTION_TIMER, Bundle.EMPTY),
+            Bundle().apply { putInt(SoundPlaybackService.KEY_MINUTES, minutes ?: -1) })
+        onDismiss()
+    }
     SleepSheet("定时关闭", onDismiss) {
         SleepCard {
-            listOf(15, 30, 60, 90, null).forEach { minutes ->
-                TextButton(onClick = {
-                    controller?.sendCustomCommand(SessionCommand(SoundPlaybackService.ACTION_TIMER, Bundle.EMPTY),
-                        Bundle().apply { putInt(SoundPlaybackService.KEY_MINUTES, minutes ?: -1) })
-                    onDismiss()
-                }, enabled = controller != null, modifier = Modifier.fillMaxWidth()) {
+            listOf(5, 15, 30, 60, 90, null).forEach { minutes ->
+                TextButton(onClick = { applyTimer(minutes) }, enabled = controller != null, modifier = Modifier.fillMaxWidth()) {
                     Text(minutes?.let { "$it 分钟" } ?: "整晚播放", modifier = Modifier.weight(1f))
                     if (PlaybackUiState.timerMinutes == minutes) Icon(SleepIcons.Check, "已选")
                 }
+            }
+        }
+        SleepCard {
+            Text("自定义时长", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(value = customMinutes,
+                onValueChange = { if (it.length <= 4 && it.all(Char::isDigit)) customMinutes = it },
+                label = { Text("分钟数") }, suffix = { Text("分钟") },
+                supportingText = { Text("1–${SleepTimer.MAX_MINUTES} 分钟，例如 6 分钟") },
+                isError = customMinutes.isNotEmpty() && !valid,
+                singleLine = true, enabled = controller != null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (valid && controller != null) applyTimer(value) }),
+                modifier = Modifier.fillMaxWidth())
+            Button(onClick = { applyTimer(value) }, enabled = valid && controller != null, modifier = Modifier.fillMaxWidth()) {
+                Text("应用定时")
             }
         }
         Caption("结束前 10 秒逐渐降低音量。定时只关闭助眠声音，夜间记录会继续。")

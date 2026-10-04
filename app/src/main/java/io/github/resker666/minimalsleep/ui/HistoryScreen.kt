@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import io.github.resker666.minimalsleep.capture.RecordingUiState
 import io.github.resker666.minimalsleep.data.AudioFileStore
 import io.github.resker666.minimalsleep.data.CaptureHour
+import io.github.resker666.minimalsleep.data.DeviceBoot
 import io.github.resker666.minimalsleep.data.PlaybackInterval
 import io.github.resker666.minimalsleep.data.RecordingGap
 import io.github.resker666.minimalsleep.data.SleepDatabase
@@ -81,10 +82,17 @@ fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
     LaunchedEffect(refresh, selectedId, recording) {
         try {
             val data = withContext(Dispatchers.IO) {
-                val dao = SleepDatabase.get(context).dao()
+                val database = SleepDatabase.get(context)
+                val dao = database.dao()
                 if (!recording) {
-                    dao.markStaleInterrupted(System.currentTimeMillis())
-                    dao.markStaleClassificationSkipped()
+                    database.runInTransaction {
+                        // Recheck after obtaining the DB transaction so a newly started session
+                        // cannot be mistaken for a stale one by an earlier UI snapshot.
+                        if (RecordingUiState.status == "STOPPED") {
+                            dao.recoverInterrupted(System.currentTimeMillis(), DeviceBoot.count(context))
+                            dao.markStaleClassificationSkipped()
+                        }
+                    }
                 }
                 val nights = dao.sessions()
                 val selectedEvents = selectedId?.let(dao::events).orEmpty()
@@ -242,7 +250,7 @@ fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(formatStart(night), style = MaterialTheme.typography.titleMedium)
-                                Caption("有效采集 ${durationLabel(night.durationSamples / 16_000)} · ${statusLabel(night.status)}")
+                                Caption("${captureDurationLabel(night)} · ${statusLabel(night.status)}")
                                 night.endReason?.let { Text("中断：$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                             }
                             Icon(SleepIcons.Chevron, "查看片段", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
@@ -255,8 +263,10 @@ fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
                     SleepCard {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Caption("有效采集")
-                                Text(durationLabel(session.durationSamples / 16_000), style = MaterialTheme.typography.titleLarge)
+                                Caption(if (session.recoveredAtEpochMs != null) "已确认采集" else "有效采集")
+                                Text(if (session.recoveredAtEpochMs != null && session.durationSamples == 0L) "未知"
+                                    else "${if (session.recoveredAtEpochMs != null) "至少 " else ""}${durationLabel(session.durationSamples / 16_000)}",
+                                    style = MaterialTheme.typography.titleLarge)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Caption("保存片段")
@@ -265,6 +275,7 @@ fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
                         }
                         Caption("${statusLabel(session.status)} · ${events.map { it.groupId }.distinct().size} 个事件组")
                         session.endReason?.let { Text("中断原因：$it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        if (session.recoveredAtEpochMs != null) Caption("时长按已保存记录恢复，实际采集可能更长。中断后没有采到的声音无法回听。")
                         if (gaps.isNotEmpty()) Text("存在 ${gaps.size} 处采集中断，详情见采集诊断。", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -407,6 +418,10 @@ fun HistoryScreen(modifier: Modifier = Modifier, onSettings: () -> Unit = {}) {
 private fun CaptureDetails(session: SleepSession, events: List<SoundEvent>, intervals: List<PlaybackInterval>, gaps: List<RecordingGap>, hours: List<CaptureHour>) {
     SleepCard {
         Text("采集详情", style = MaterialTheme.typography.titleMedium)
+        session.lastCaptureAtEpochMs?.let { Caption("末次保存采集进度：${formatMoment(it, session.startTimeZone)}") }
+        session.recoveredAtEpochMs?.let {
+            Caption("发现中断：${formatMoment(it, session.startTimeZone)}\n确切结束时间未知；时间轴按采样位置换算。")
+        }
         Caption("助眠声播放 ${durationLabel(SessionSummary.playbackSeconds(intervals, session.durationSamples))}，重叠时可能被麦克风录入。")
         SessionSummary.countByLabel(events).forEach { (label, counts) ->
             Caption("$label · 无干扰 ${counts.unaffectedGroups} / 有干扰 ${counts.affectedGroups} 个事件组")
@@ -433,6 +448,16 @@ private data class HistoryData(val sessions: List<SleepSession>, val events: Lis
 private fun formatStart(session: SleepSession): String = SimpleDateFormat("yyyy年M月d日 · HH:mm", Locale.CHINA).apply {
     timeZone = TimeZone.getTimeZone(session.startTimeZone)
 }.format(Date(session.startedAtEpochMs))
+
+private fun formatMoment(epochMs: Long, zone: String): String = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).apply {
+    timeZone = TimeZone.getTimeZone(zone)
+}.format(Date(epochMs))
+
+private fun captureDurationLabel(session: SleepSession): String = when {
+    session.recoveredAtEpochMs == null -> "有效采集 ${durationLabel(session.durationSamples / 16_000)}"
+    session.durationSamples == 0L -> "采集时长未知"
+    else -> "已确认采集至少 ${durationLabel(session.durationSamples / 16_000)}"
+}
 
 private fun durationLabel(seconds: Long): String = when {
     seconds >= 3600 -> "${seconds / 3600} 小时 ${seconds % 3600 / 60} 分"
