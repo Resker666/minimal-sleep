@@ -21,31 +21,13 @@ final class AVAudioPlayerPlaybackEngine: NSObject, AudioPlaybackEngine, AVAudioP
     var onPlaybackMustPause: (() -> Void)?
     var onPlaybackFailed: ((String) -> Void)?
 
-    private let session: AVAudioSession
+    private let sessionController: AudioSessionControlling
     private var player: AVAudioPlayer?
     private var volume: Float = 0.5
 
-    init(session: AVAudioSession = .sharedInstance()) {
-        self.session = session
+    init(sessionController: AudioSessionControlling) {
+        self.sessionController = sessionController
         super.init()
-
-        let center = NotificationCenter.default
-        center.addObserver(
-            self,
-            selector: #selector(handleInterruptionNotification(_:)),
-            name: AVAudioSession.interruptionNotification,
-            object: session
-        )
-        center.addObserver(
-            self,
-            selector: #selector(handleRouteChangeNotification(_:)),
-            name: AVAudioSession.routeChangeNotification,
-            object: session
-        )
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
     }
 
     func load(sound: SoundDescriptor, resourceURL: URL) throws {
@@ -62,46 +44,28 @@ final class AVAudioPlayerPlaybackEngine: NSObject, AudioPlaybackEngine, AVAudioP
 
     func play() throws {
         guard let player else { throw AudioPlaybackEngineError.playerUnavailable }
-        try session.setCategory(.playback, mode: .default)
-        try session.setActive(true)
+        try sessionController.setPlaybackActive(true)
         guard player.play() else {
+            try? sessionController.setPlaybackActive(false)
             throw AudioPlaybackEngineError.playbackDidNotStart
         }
     }
 
     func pause() {
         player?.pause()
-        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        try? sessionController.setPlaybackActive(false)
     }
 
     func stop() {
         player?.stop()
         player = nil
         loadedSoundID = nil
-        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        try? sessionController.setPlaybackActive(false)
     }
 
     func setVolume(_ volume: Float) {
         self.volume = min(1, max(0, volume))
         player?.volume = self.volume
-    }
-
-    @objc
-    nonisolated private func handleInterruptionNotification(_ notification: Notification) {
-        guard let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-              AVAudioSession.InterruptionType(rawValue: rawType) == .began else { return }
-        Task { @MainActor [weak self] in
-            self?.onPlaybackMustPause?()
-        }
-    }
-
-    @objc
-    nonisolated private func handleRouteChangeNotification(_ notification: Notification) {
-        guard let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              AVAudioSession.RouteChangeReason(rawValue: rawReason) == .oldDeviceUnavailable else { return }
-        Task { @MainActor [weak self] in
-            self?.onPlaybackMustPause?()
-        }
     }
 
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {

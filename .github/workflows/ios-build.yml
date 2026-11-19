@@ -150,6 +150,7 @@ jobs:
             -project ios/MinimalSleep.xcodeproj \
             -scheme MinimalSleep \
             -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID" \
+            -parallel-testing-enabled NO \
             -derivedDataPath "$RUNNER_TEMP/ios-tests" \
             CODE_SIGNING_ALLOWED=NO \
             test > ios-tests.log 2>&1
@@ -184,6 +185,10 @@ jobs:
           app="$RUNNER_TEMP/ios-release/Build/Products/Release-iphonesimulator/MinimalSleep.app"
           test -d "$app"
           test -s "$app/MinimalSleep"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = '0.5.0'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = '2'
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$app/Info.plist")"
+          /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$app/Info.plist" | grep -q audio
           test -s "$app/rain-01.m4a"
           test -s "$app/rain-04.m4a"
           test ! -e "$app/rain-01.wav"

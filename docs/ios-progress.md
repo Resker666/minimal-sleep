@@ -8,6 +8,15 @@
 - 此环境没有 Xcode/iOS SDK，未执行 XCTest 或 iOS 编译；FFmpeg 7.1.5 的功能测试不等于 Homebrew 9.0.2 的逐字节可复现验收。保留原 FFmpeg 9.0.2 门禁与预期 M4A 哈希，不放宽清单检查。
 - 新仓库创建与新远端 CI 尚待完成。以下为原单仓库的历史记录，不能当作本次拆分后的重新验收。
 
+## 2026-09-24 夜间声音片段录音开发预览
+
+- 分支 `codex/ios-night-recording` 已实现 iOS `0.5.0 (2)` 的麦克风权限、用户主动开始/结束记录、16 kHz 单声道能量触发、约 3 秒前后缓冲、60 秒分片、私有 WAV/JSON 存储、记录列表、回听、单条及整次删除。保留现有助眠声播放和白噪声；Android 版本仍为 `0.4.0-dev` / versionCode 5。
+- 助眠声与录音共享音频会话；播放重叠片段标记为“可能受影响”。音频中断或耳机等输出设备断开会停止录音，不自动恢复。没有加入回声消除或声音分类。
+- 本地 iPhone 18 Pro / iOS 27.0 模拟器上 91 个 XCTest 通过，未签名 Release 模拟器构建成功；App 包中的版本、麦克风用途说明、后台 audio 和两段 M4A 加三段小型 WAV 已检查。自动测试覆盖状态、切片、文件事务和恢复，但不能证明真机麦克风或锁屏录音。
+- 真机安装与覆盖安装、麦克风授权允许/拒绝、仅录音、播放加录音、锁屏 30 分钟、音频中断/路由变化、回听/删除、8 小时整夜和实际听感均**未测**。第一次 `devicectl list devices` 在 CoreDeviceService 初始化时超时；随后查询成功，但 iPhone `朱颜辞镜花辞树` 为 `unavailable`。无签名通用 iPhone 构建通过，尚未签名或安装。
+- 提交 `ac34f0d6f9d4` 的 [iOS CI #11](https://github.com/Resker666/minimal-sleep/actions/runs/36015988792) 与 [Android CI #29](https://github.com/Resker666/minimal-sleep/actions/runs/36015988618) 均成功。iOS 模拟器 Artifact 为 `minimal-sleep-ios-simulator-11`，17,838,226 字节；它不是可装到 iPhone 的 IPA。
+- 下一步先连接、解锁并信任 iPhone，以同一 Bundle ID 和 Personal Team 覆盖安装，再做短录音与既有导入音频保留检查；之后分别验证锁屏 30 分钟和整夜可靠性。录音仍只留在手机 App 私有目录，不导入 Git 或上传。
+
 ## 当前状态（2026-09-24）
 
 - Git 历史中的 `ios/MinimalSleep/Resources/rain-01.wav` 和 `rain-04.wav` 已完成清理；后续不再重写仓库历史。fresh clone 只保留两个 Ogg 源文件，iOS 本地或 CI 构建前生成压缩 M4A。

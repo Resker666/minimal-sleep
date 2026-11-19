@@ -3,6 +3,37 @@ import XCTest
 
 @MainActor
 final class AudioCoordinatorTests: XCTestCase {
+    func testRecordingPlaybackSnapshotTracksSoundStateAndEffectiveVolume() {
+        let engine = FakeAudioPlaybackEngine(loadedSoundID: SoundCatalog.builtIn[0].id)
+        let coordinator = AudioCoordinator(engine: engine)
+
+        coordinator.play()
+        XCTAssertEqual(coordinator.recordingPlaybackSnapshot.soundID, SoundCatalog.builtIn[0].id)
+        XCTAssertTrue(coordinator.recordingPlaybackSnapshot.isPlaying)
+        XCTAssertEqual(coordinator.recordingPlaybackSnapshot.appVolume, 0.5, accuracy: 0.001)
+
+        coordinator.setBaseVolume(0.3)
+        coordinator.selectSound(SoundCatalog.builtIn[4])
+        XCTAssertEqual(coordinator.recordingPlaybackSnapshot.soundID, SoundCatalog.builtIn[4].id)
+        XCTAssertEqual(coordinator.recordingPlaybackSnapshot.appVolume, 0.3, accuracy: 0.001)
+
+        coordinator.pause()
+        XCTAssertFalse(coordinator.recordingPlaybackSnapshot.isPlaying)
+    }
+
+    func testRecordingPlaybackSnapshotUsesFadeVolume() {
+        var now: TimeInterval = 0
+        let engine = FakeAudioPlaybackEngine(loadedSoundID: SoundCatalog.builtIn[0].id)
+        let coordinator = AudioCoordinator(
+            engine: engine,
+            timerPolicy: SleepTimerPolicy(selectedDuration: .fifteenMinutes, monotonicNow: { now })
+        )
+        coordinator.play()
+        now = 895
+        coordinator.refreshTimer()
+        XCTAssertEqual(coordinator.recordingPlaybackSnapshot.appVolume, 0.25, accuracy: 0.001)
+    }
+
     func testBackgroundSchedulerExpiresSessionWithoutUIViewTimer() {
         var now: TimeInterval = 0
         let engine = FakeAudioPlaybackEngine(loadedSoundID: SoundCatalog.builtIn[0].id)
