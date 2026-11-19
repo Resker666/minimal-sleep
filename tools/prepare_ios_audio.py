@@ -2,7 +2,7 @@
 """Transcode the two licensed looped rain Ogg files to iOS AAC/M4A resources.
 
 The command changes the container/codec and targets 128 kbps AAC. It applies no
-trim, filter, gain, channel conversion, or resampling. Existing Android assets
+trim, filter, gain, channel conversion, or resampling. Bundled source assets
 are opened read-only.
 """
 
@@ -200,7 +200,7 @@ def prepare(
 ) -> list[dict[str, object]]:
     executable = require_executable(ffmpeg)
     probe_executable = require_executable(ffprobe)
-    input_directory = repository / "app/src/main/assets/local-sounds"
+    input_directory = repository / "assets/source-audio"
     output_directory = repository / "ios/MinimalSleep/Resources"
     output_directory.mkdir(parents=True, exist_ok=True)
     reject_legacy_wav(output_directory)

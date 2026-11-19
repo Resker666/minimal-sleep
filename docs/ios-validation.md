@@ -1,5 +1,13 @@
 # iOS validation
 
+## 2026-11-19 独立仓库拆分准备
+
+- 来源与分支约定见 [拆分记录](repository-split.md)。当前 iOS 工作树不再包含 Android 工程，素材输入位于本仓库 `assets/source-audio/`。
+- 本轮只调整仓库边界、工具路径、CI 和文档，未改 Swift、XCTest、Xcode 工程、应用标识、版本或三段 WAV。两段 Ogg 副本逐字节相同，所有被跟踪音频的清单哈希匹配。
+- Linux / Python 3.12.14 / FFmpeg 7.1.5：新增独立目录集成测试首先因旧 `app/` 路径失败；修改输入路径后 `test_prepare_ios_audio.py` **7/7 通过**；完整 Python 工具集 **17/17 通过**。使用两段真实 Ogg，在含空格的临时路径转码，验证无 Android 目录、源哈希不变、派生文件/清单正确和临时文件清理。
+- 此环境没有 Xcode/iOS SDK，未执行 XCTest 或 iOS 编译；FFmpeg 7.1.5 的功能测试不等于 Homebrew 9.0.2 的逐字节可复现验收。保留原 FFmpeg 9.0.2 门禁与预期 M4A 哈希，不放宽清单检查。
+- 新仓库创建与新远端 CI 尚待完成。以下为原单仓库的历史记录，不能当作本次拆分后的重新验收。
+
 ## 2026-09-24 AAC/M4A 压缩复验
 
 验证分支为 `codex/ios-reliability`。环境为 macOS 27.0、Xcode 27.0、Homebrew Python 3.12.14、FFmpeg/FFprobe 9.0.2，以及 iPhone 18 Pro / iOS 27.0 模拟器 `75FA9690-7229-4F85-96C1-284AD9262383`。

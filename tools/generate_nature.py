@@ -88,7 +88,7 @@ def write_wav(path: Path, samples: list[float], rate: int = RATE) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=Path("app/src/main/res/raw"))
+    parser.add_argument("--output-dir", type=Path, default=Path("ios/MinimalSleep/Resources"))
     args = parser.parse_args()
     paths = {kind: args.output_dir / f"{kind}.wav" for kind in LENGTHS}
     if any(path.exists() for path in paths.values()):

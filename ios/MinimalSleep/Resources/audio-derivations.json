@@ -3,7 +3,7 @@
   "tool": "tools/prepare_ios_audio.py",
   "records": [
     {
-      "sourcePath": "app/src/main/assets/local-sounds/rain-01.ogg",
+      "sourcePath": "assets/source-audio/rain-01.ogg",
       "sourceSha256": "b1cace1e59c4248e0e21686543e100aa611a9f8f3875c47757d67fddd90c9cc9",
       "outputPath": "ios/MinimalSleep/Resources/rain-01.m4a",
       "outputSha256": "ea9a392d6e262d19db2c9ef8c1bb31ce81db2ecc420d11fd474217e7d15594fc",
@@ -28,7 +28,7 @@
         "error",
         "-xerror",
         "-i",
-        "app/src/main/assets/local-sounds/rain-01.ogg",
+        "assets/source-audio/rain-01.ogg",
         "-map_metadata",
         "-1",
         "-vn",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "sourcePath": "app/src/main/assets/local-sounds/rain-04.ogg",
+      "sourcePath": "assets/source-audio/rain-04.ogg",
       "sourceSha256": "888fc1071e05dee973487b93a35b6cbecfbfe61fd0342e53f115a945ede9a61e",
       "outputPath": "ios/MinimalSleep/Resources/rain-04.m4a",
       "outputSha256": "b779392b3ff4c7a24d2459477c4d8e28969cb123e1989c507942266e385ca85b",
@@ -67,7 +67,7 @@
         "error",
         "-xerror",
         "-i",
-        "app/src/main/assets/local-sounds/rain-04.ogg",
+        "assets/source-audio/rain-04.ogg",
         "-map_metadata",
         "-1",
         "-vn",

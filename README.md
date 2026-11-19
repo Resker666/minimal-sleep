@@ -1,52 +1,47 @@
-# minimal-sleep
+# minimal-sleep-ios
 
-极简睡眠：免费、开源、离线的助眠应用。Android 版包含实验性的夜间声音记录与本地分类；iOS 首版聚焦可靠播放、定时关闭和本地音频导入。两个平台目前都是开发预览版。
+极简睡眠 iOS：免费、开源、离线的助眠应用。使用 Swift、SwiftUI 与系统音频框架，在 Mac 上通过 Xcode 开发，支持 iOS 17 及以上的 iPhone/iPad。
 
-## 当前状态
+本仓库从 [minimal-sleep](https://github.com/Resker666/minimal-sleep) 分离，独立保存源码、构建配置、音频源素材和测试。构建不需要 Android 仓库、Gradle 或 Android SDK。Android 继续在原仓库维护。
 
-Android 已实现五种内置离线助眠声音、手机本地音频导入、后台播放、定时关闭、声音片段录制、夜间列表和原音回听。Android v0.5.0 增加整夜时间轴、片段内拖动回听、可切换的高灵敏度与每小时采集音量统计；这些改进仍需整夜真机对照。开发中的 v0.6.0 按 [界面 A 方案](docs/android-ui.md) 整理“今晚/记录”两页，加入浅色、深色和跟随系统外观，设置与诊断信息移入二级界面；真机界面验收见验证记录。iOS 原生工程已可在 Xcode 27 构建，并实现五种内置声音、AVAudioPlayer 循环播放、后台 audio、锁屏播放/暂停、定时淡出、偏好保存和 MP3/M4A/WAV 私有导入；模拟器自动化测试已通过，真机播放、锁屏和整夜可靠性仍待验收。Android 本地 YAMNet 疑似分类的真实声音准确率也仍待验证。不提供睡眠评分、深睡或呼吸暂停结论。准确状态见 [Android 开发进度](docs/progress.md)、[Android 验证记录](docs/validation.md)、[iOS 进度](docs/ios-progress.md) 与 [iOS 验证记录](docs/ios-validation.md)。
+## 功能与分支
 
-## 已实现
+`main` 保留原主干的播放预览版：五种内置声音、循环播放、后台音频、锁屏播放/暂停、15/30/60/90 分钟或整晚、结束前 10 秒淡出、音量/定时偏好，以及 MP3/M4A/WAV 私有导入。
 
-- 两段雨声剪辑由 Resker666 提供并按 CC BY 4.0 授权；合成大雨、海浪和白噪声由本仓库脚本生成。均可离线循环播放；Android 支持 5/15/30/60/90 分钟快捷选择、1–720 分钟自定义（如 6 分钟）或整晚，定时结束前 10 秒淡出。合成大雨和海浪是程序近似音。
-- 可通过系统文件选择器导入手机上的音频；App 将其复制到私有目录离线循环播放。最多 10 个，每个不超过 100 MiB，总计不超过 300 MiB，并保留至少 200 MiB 设备可用空间；可在 App 内删除。用户自行导入的素材不包含在 APK 或仓库中。
-- 录音权限由用户启动记录时申请；16 kHz 单声道采集，基于未校准能量阈值保存一般声音 WAV 片段，前后各约 3 秒，单文件最多 60 秒。
-- 录音、片段、播放区间和中断原因保存在应用私有目录及 Room 数据库；播放重叠片段标记“识别可能受影响”，可回听、逐条删除或删除整夜记录。
-- Android v0.6.1 约每 10 秒保存采集进度、当前播放区间和小时统计；异常结束后恢复已保存片段的时间轴，显示已确认采集时长与发现中断时间。确切终止时间可能未知；手机重启期间无法录音，更新不能补回缺失原音。
-- 保存片段后，Google YAMNet Lite v1 在手机本地给出疑似鼾声、人声/疑似梦话、咳嗽、其他环境声音或未确定标签；可手动改标签并保留模型原分数与版本。播放干扰内外的候选事件组分开显示。
-- 无账号、广告、分析 SDK 或 `INTERNET` 权限；禁用云备份与设备迁移备份。
+`codex/ios-night-recording` 单独保留尚未合入原主干的夜间录音开发工作，包含麦克风采集、声音片段、记录列表、回听与删除。拆分本身不会将该功能合入 `main`。进度见 [iOS 进度](docs/ios-progress.md)，测试范围见 [iOS 验证记录](docs/ios-validation.md)。
 
-## 重要限制
+两条分支均为开发预览；历史模拟器测试结果不能证明当前拆分版已通过真机或整夜验收。不提供睡眠评分、深睡或呼吸暂停结论。
 
-- 当前能量触发可能漏掉安静梦话，也可能把其他声音录成事件；模型只分析已保存片段，不能填补触发前的漏检。模型分数未经概率校准，尚无分类误报/漏报的真实样本验收；所有标签均属实验性提示。
-- 手机扬声器播放会被麦克风录入。播放区间和干扰标记只是说明数据受到影响，**不是回声消除**；同时播放与记录仍属实验性。
-- 录音默认只留事件片段，未触发的时段不会保存原音；“没有片段”不能解释为“没有鼾声”。当前没有整夜真机测试、自动保留期清理、导出、长期趋势和收藏保护。
-- 录音文件存储上限暂设 1 GiB，设备剩余空间低于 200 MiB 时停止采集并记录原因。普通删除不等于闪存安全擦除。
+## 从独立仓库构建
 
-## 构建
+需要完整 Xcode 及 iOS 平台组件、Python 3.12、FFmpeg/FFprobe。现有可复现音频清单基于 Homebrew FFmpeg **9.0.2**；其他版本可能产生不同哈希，CI 会拒绝清单差异，不能直接放宽校验。
 
-### iOS
-
-需要安装完整 Xcode 及 iOS 平台组件。打开 `ios/MinimalSleep.xcodeproj`，选择 `MinimalSleep` scheme。命令行模拟器构建：
+从仓库根目录先准备音频，再打开工程：
 
 ```bash
-xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/minimal-sleep-ios-derived build CODE_SIGNING_ALLOWED=NO
+python3 -m unittest discover -s tools -p 'test_prepare_ios_audio.py' -v
+python3 tools/prepare_ios_audio.py --ffmpeg "$(command -v ffmpeg)" --ffprobe "$(command -v ffprobe)"
+git diff --exit-code -- assets-manifest.csv ios/MinimalSleep/Resources/audio-derivations.json
+open ios/MinimalSleep.xcodeproj
 ```
 
-真机安装前，在 Xcode 的 **Settings > Accounts** 登录自己的 Apple ID，并在 target 的 **Signing & Capabilities** 选择真实 Personal Team；仓库不保存 Team ID、证书或描述文件。详细步骤见 [iOS 开发说明](docs/ios-development.md)。
+三段 WAV 已纳入 Git；两段雨声由本仓库 `assets/source-audio/` 中的 Ogg 生成 M4A。生成文件不纳入 Git，脚本拒绝覆盖已有输出。详见 [资源说明](docs/assets.md)。
 
-### Android
+无签名模拟器构建：
 
-需要 JDK 17、Android SDK API 36 与 Build Tools 35.0.0。新电脑首次构建需要下载工具和依赖；此 Windows 工作区可按 [开发环境交接](docs/development-setup.md) 复用已缓存的工具。Windows：
-
-```powershell
-.\gradlew.bat testDebugUnitTest lintDebug assembleDebug
+```bash
+xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep \
+  -configuration Debug -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/minimal-sleep-ios-derived build CODE_SIGNING_ALLOWED=NO
 ```
 
-非 Windows 使用 `./gradlew`。首次构建需要访问 Google Maven、Maven Central 与 Gradle 官方分发站；App 运行时不联网。构建生成的调试 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。APK 不纳入 Git；已核验的自然声试用包可从 [v0.2.0-preview.1 预发布页](https://github.com/Resker666/minimal-sleep/releases/tag/v0.2.0-preview.1) 下载。它使用本机调试签名，尚非正式发布版。Android 8.0 及以上可尝试安装；MIUI/HyperOS 可能需要从手机文件管理器手动确认安装。
+测试前用 `xcrun simctl list devices available` 选择当前 Mac 上可用的 iPhone 模拟器，然后按 [开发说明](docs/ios-development.md) 执行 XCTest。真机安装需要自己的 Apple ID 与 Personal Team；保持 Bundle ID `io.github.resker666.minimalsleep`，不要为试装而卸载含有私有音频的旧 App。
 
-推送到 `main` 或 `codex/**` 分支时，[Android APK 工作流](https://github.com/Resker666/minimal-sleep/actions/workflows/android-apk.yml) 会在 GitHub Actions 安装 JDK 17、Android SDK API 36 与 Build Tools 35，运行 Python 音频工具测试、Android Lint 与 JVM 单元测试，成功后构建调试 APK。登录 GitHub 后，在成功运行页面的 **Artifacts** 中下载 `minimal-sleep-debug-<运行编号>` ZIP，解压得到 `minimal-sleep-debug.apk` 和 SHA-256 校验文件；产物保留 14 天。它是测试产物，不是 GitHub Release。云端每次使用临时调试签名，不能直接覆盖安装由本机或其他运行签名的 App；卸载旧 App 会删除其私有录音和导入音频，因此有数据时不要为试装云端包直接卸载。固定签名密钥与安全分发流程列为后续事项。
+## CI、隐私和许可证
 
-夜间试用时将手机置于稳定位置、麦克风无遮挡，先做仅播放、仅记录和同时运行的短测，再做锁屏与整夜测试。播放器可能受到耳机断开、其他应用音频焦点和系统后台限制影响，请按 [真机验证步骤](docs/validation.md) 记录结果。
+[iOS 工作流](.github/workflows/ios-build.yml) 准备音频、校验清单、执行 XCTest 并构建模拟器 App。Artifact 是未签名模拟器包，不能直接安装到 iPhone。两端分别维护版本与发布，不自动同步功能。
 
-源码许可证为 [Apache-2.0](LICENSE)。内置音频、模型与依赖来源见 [资源说明](docs/assets.md)、[模型说明](docs/model-assets.md)、[资源清单](assets-manifest.csv) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。录音不纳入 Git；当前没有正式版发布。
+应用离线运行，导入音频留在 App 私有目录；录音分支同样不上传原音。Git 中不保存录音、账号凭据、签名证书、Team ID 或构建产物。
+
+源码与合成 WAV 为 [Apache-2.0](LICENSE)；两段录制雨声及派生 M4A 为 Resker666 / CC BY 4.0。详见 [第三方说明](THIRD_PARTY_NOTICES.md)、[资源清单](assets-manifest.csv) 和 [拆分记录](docs/repository-split.md)。

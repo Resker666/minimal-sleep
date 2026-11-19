@@ -70,7 +70,7 @@ def write_wav(path: Path, samples: list[float]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=Path("app/src/main/res/raw"))
+    parser.add_argument("--output-dir", type=Path, default=Path("ios/MinimalSleep/Resources"))
     parser.add_argument("--seconds", type=int, default=20)
     args = parser.parse_args()
     if args.seconds < 1:

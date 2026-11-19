@@ -1,6 +1,7 @@
 import csv
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 
@@ -8,6 +9,40 @@ import prepare_ios_audio
 
 
 class PrepareIosAudioTest(unittest.TestCase):
+    def test_prepare_succeeds_without_an_android_checkout(self):
+        self.assertIsNotNone(shutil.which("ffmpeg"), "Install FFmpeg before running audio tests")
+        self.assertIsNotNone(shutil.which("ffprobe"), "Install FFprobe before running audio tests")
+        fixtures = Path(__file__).resolve().parents[1] / "assets/source-audio"
+        with tempfile.TemporaryDirectory(prefix="minimal sleep standalone ") as directory:
+            repository = Path(directory)
+            inputs = repository / "assets/source-audio"
+            inputs.mkdir(parents=True)
+            for name in prepare_ios_audio.RAIN_FILES:
+                shutil.copyfile(fixtures / f"{name}.ogg", inputs / f"{name}.ogg")
+            before = {path.name: prepare_ios_audio.sha256(path) for path in inputs.iterdir()}
+            (repository / "assets-manifest.csv").write_text(
+                "path,author,source,license,sha256\n", encoding="utf-8"
+            )
+
+            records = prepare_ios_audio.prepare(repository, "ffmpeg", "ffprobe")
+
+            self.assertFalse((repository / "app").exists())
+            self.assertEqual(len(records), 2)
+            self.assertEqual(before, {
+                path.name: prepare_ios_audio.sha256(path) for path in inputs.iterdir()
+            })
+            for record in records:
+                self.assertTrue(str(record["sourcePath"]).startswith("assets/source-audio/"))
+                self.assertEqual(record["license"], "CC-BY-4.0")
+                self.assertTrue((repository / str(record["outputPath"])).is_file())
+                self.assertEqual(record["encoding"]["codec"], "aac")
+            manifest = json.loads((repository / "ios/MinimalSleep/Resources/audio-derivations.json").read_text())
+            self.assertEqual(manifest["records"], records)
+            with (repository / "assets-manifest.csv").open(newline="") as source:
+                rows = list(csv.DictReader(source))
+            self.assertEqual([row["sha256"] for row in rows], [r["outputSha256"] for r in records])
+            self.assertEqual(list((repository / "ios/MinimalSleep/Resources").glob(".*.transcoding.m4a")), [])
+
     def test_ffmpeg_command_encodes_aac_m4a_without_editing_the_source(self):
         command = prepare_ios_audio.ffmpeg_command(
             "ffmpeg",
@@ -83,7 +118,7 @@ class PrepareIosAudioTest(unittest.TestCase):
                 manifest,
                 [
                     {
-                        "sourcePath": "app/src/main/assets/local-sounds/rain-01.ogg",
+                        "sourcePath": "assets/source-audio/rain-01.ogg",
                         "outputPath": "ios/MinimalSleep/Resources/rain-01.m4a",
                         "outputSha256": "new-hash",
                     }

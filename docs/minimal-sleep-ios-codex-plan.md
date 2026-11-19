@@ -1,3 +1,5 @@
+> Historical monorepo proposal. For current standalone build commands, use [iOS development](ios-development.md). Paths and planned features below describe the original proposal, not current requirements.
+
 # minimal-sleep iOS：桌面端 Codex 执行文档
 
 > 给执行代理：按任务顺序实施。若安装了 Superpowers，使用 `superpowers:executing-plans`；否则使用本机等效的计划、实现、验证流程。无需安装这些技能才能执行。勾选框用于记录真实进度。

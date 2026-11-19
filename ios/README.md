@@ -14,6 +14,8 @@ The playback MVP is wired end to end:
 
 ## Build and test
 
+Run commands from the repository root. First follow the audio preparation commands in [the root README](../README.md) before running Xcode. The `ios/` layout is retained after the repository split.
+
 ```bash
 xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/minimal-sleep-ios-derived build CODE_SIGNING_ALLOWED=NO
 
@@ -22,7 +24,7 @@ xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configurati
 xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /tmp/minimal-sleep-ios-device-derived build CODE_SIGNING_ALLOWED=NO
 ```
 
-Git contains the three small WAV files and the two shared Ogg rain sources. Before a fresh-clone iOS build, use Python 3.12 and FFmpeg to generate the two ignored AAC/M4A rain resources with `tools/prepare_ios_audio.py`.
+Git contains the three small WAV files and the two Ogg rain sources in `assets/source-audio/`. No Android checkout is needed. Before a fresh-clone iOS build, use Python 3.12 and FFmpeg to generate the two ignored AAC/M4A rain resources with `tools/prepare_ios_audio.py`.
 
 ## Install on an iPhone
 

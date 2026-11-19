@@ -7,8 +7,8 @@ on:
       - 'codex/**'
     paths:
       - 'ios/**'
-      - 'app/src/main/assets/local-sounds/rain-01.ogg'
-      - 'app/src/main/assets/local-sounds/rain-04.ogg'
+      - 'assets/source-audio/rain-01.ogg'
+      - 'assets/source-audio/rain-04.ogg'
       - 'tools/prepare_ios_audio.py'
       - 'tools/test_prepare_ios_audio.py'
       - 'assets-manifest.csv'
@@ -17,8 +17,8 @@ on:
   pull_request:
     paths:
       - 'ios/**'
-      - 'app/src/main/assets/local-sounds/rain-01.ogg'
-      - 'app/src/main/assets/local-sounds/rain-04.ogg'
+      - 'assets/source-audio/rain-01.ogg'
+      - 'assets/source-audio/rain-04.ogg'
       - 'tools/prepare_ios_audio.py'
       - 'tools/test_prepare_ios_audio.py'
       - 'assets-manifest.csv'

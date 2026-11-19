@@ -69,7 +69,7 @@ Git tracks these three smaller iOS WAV resources directly:
 - `ios/MinimalSleep/Resources/ocean_waves.wav`
 - `ios/MinimalSleep/Resources/white_noise.wav`
 
-The two 298-second rain AAC/M4A files are generated build inputs. Git tracks their shared Android/iOS Ogg sources at `app/src/main/assets/local-sounds/rain-01.ogg` and `rain-04.ogg`, while `.gitignore` excludes the generated `rain-01.m4a`, `rain-04.m4a`, temporary `.rain-*.transcoding.m4a` files, and obsolete generated WAV names.
+The two 298-second rain AAC/M4A files are generated build inputs. Git tracks their repository-local Ogg sources at `assets/source-audio/rain-01.ogg` and `rain-04.ogg`, while `.gitignore` excludes the generated `rain-01.m4a`, `rain-04.m4a`, temporary `.rain-*.transcoding.m4a` files, and obsolete generated WAV names.
 
 After a fresh clone, prepare the full iOS resources before running Xcode locally:
 
