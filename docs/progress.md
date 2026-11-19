@@ -1,5 +1,13 @@
 # 开发进度
 
+## 2026-11-19 Android 独立仓库清理草稿
+
+- 采用方案 A：原仓库保留 Android，iOS 独立迁移。见 [拆分记录](repository-split.md)。
+- 移除 iOS 工程、iOS CI 和转码脚本，拆分 README、资源清单及授权说明；Android Gradle 项目及其资源按原版本迁移，并给 `gradlew` 设置 Unix 执行权限，支持新克隆直接运行 `./gradlew`。
+- Linux 下保留的 **10 项 Python 音频测试全部通过**。尝试执行 `lintDebug testDebugUnitTest assembleDebug` 时，Gradle Wrapper 因本环境无法连接分发站下载 Gradle 8.13 而退出，完整构建等待 GitHub Actions。
+- 新 iOS 远端与独立 CI 确认前，保持清理 PR 为草稿；本记录不表示迁移已完成。
+
+
 更新：2026-10-04。公开预发布仍是 `v0.2.0-preview.1`，本轮新包尚未公开发布。
 
 | 阶段 | 状态 | 说明 |
