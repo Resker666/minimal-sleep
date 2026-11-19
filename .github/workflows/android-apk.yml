@@ -40,10 +40,18 @@ jobs:
       - name: Cache Gradle dependencies
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Install FFmpeg for audio tool tests
+      - name: Prepare FFmpeg for audio tool tests
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            echo "Installing FFmpeg from Ubuntu package repositories"
+            apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=25 -o Acquire::https::Timeout=25)
+            sudo apt-get "${apt_options[@]}" update
+            sudo apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | sed -n '1p'
+          ffprobe -version | sed -n '1p'
 
       - name: Test audio tools
         run: |

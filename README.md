@@ -1,10 +1,12 @@
 # minimal-sleep
 
-极简睡眠：免费、开源、离线的助眠应用。Android 版包含实验性的夜间声音记录与本地分类；iOS 首版聚焦可靠播放、定时关闭和本地音频导入。两个平台目前都是开发预览版。
+极简睡眠 Android：免费、开源、离线的助眠应用，包含实验性的夜间声音记录与本地分类，目前为开发预览版。
+
+iOS 的开发与构建位于独立的 [minimal-sleep-ios](https://github.com/Resker666/minimal-sleep-ios) 仓库。迁移详情见[拆分记录](docs/repository-split.md)。
 
 ## 当前状态
 
-Android 已实现五种内置离线助眠声音、手机本地音频导入、后台播放、定时关闭、声音片段录制、夜间列表和原音回听。Android v0.5.0 增加整夜时间轴、片段内拖动回听、可切换的高灵敏度与每小时采集音量统计；这些改进仍需整夜真机对照。开发中的 v0.6.0 按 [界面 A 方案](docs/android-ui.md) 整理“今晚/记录”两页，加入浅色、深色和跟随系统外观，设置与诊断信息移入二级界面；真机界面验收见验证记录。iOS 原生工程已可在 Xcode 27 构建，并实现五种内置声音、AVAudioPlayer 循环播放、后台 audio、锁屏播放/暂停、定时淡出、偏好保存和 MP3/M4A/WAV 私有导入；模拟器自动化测试已通过，真机播放、锁屏和整夜可靠性仍待验收。Android 本地 YAMNet 疑似分类的真实声音准确率也仍待验证。不提供睡眠评分、深睡或呼吸暂停结论。准确状态见 [Android 开发进度](docs/progress.md)、[Android 验证记录](docs/validation.md)、[iOS 进度](docs/ios-progress.md) 与 [iOS 验证记录](docs/ios-validation.md)。
+Android 已实现五种内置离线助眠声音、手机本地音频导入、后台播放、定时关闭、声音片段录制、夜间列表和原音回听。Android v0.5.0 增加整夜时间轴、片段内拖动回听、可切换的高灵敏度与每小时采集音量统计；这些改进仍需整夜真机对照。开发中的 v0.6.0 按 [界面 A 方案](docs/android-ui.md) 整理“今晚/记录”两页，加入浅色、深色和跟随系统外观，设置与诊断信息移入二级界面；真机界面验收见验证记录。Android 本地 YAMNet 疑似分类的真实声音准确率也仍待验证。不提供睡眠评分、深睡或呼吸暂停结论。准确状态见 [Android 开发进度](docs/progress.md) 与 [Android 验证记录](docs/validation.md)。
 
 ## 已实现
 
@@ -24,18 +26,6 @@ Android 已实现五种内置离线助眠声音、手机本地音频导入、后
 - 录音文件存储上限暂设 1 GiB，设备剩余空间低于 200 MiB 时停止采集并记录原因。普通删除不等于闪存安全擦除。
 
 ## 构建
-
-### iOS
-
-需要安装完整 Xcode 及 iOS 平台组件。打开 `ios/MinimalSleep.xcodeproj`，选择 `MinimalSleep` scheme。命令行模拟器构建：
-
-```bash
-xcodebuild -project ios/MinimalSleep.xcodeproj -scheme MinimalSleep -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/minimal-sleep-ios-derived build CODE_SIGNING_ALLOWED=NO
-```
-
-真机安装前，在 Xcode 的 **Settings > Accounts** 登录自己的 Apple ID，并在 target 的 **Signing & Capabilities** 选择真实 Personal Team；仓库不保存 Team ID、证书或描述文件。详细步骤见 [iOS 开发说明](docs/ios-development.md)。
-
-### Android
 
 需要 JDK 17、Android SDK API 36 与 Build Tools 35.0.0。新电脑首次构建需要下载工具和依赖；此 Windows 工作区可按 [开发环境交接](docs/development-setup.md) 复用已缓存的工具。Windows：
 
