@@ -8,13 +8,13 @@
 - 播放主干来源：`eea22b14acb46fb0f4e2e7e8d1fc728b1cbc3528`。
 - 夜间录音分支来源：`95ab67906136e81041df685ed30dc47a113108cc`。
 - 新提交分离当前工作树，保留原提交祖先；不改写原仓库历史、不强推。
-  因此 iOS 新仓库的旧历史中仍能看到 Android 文件，这不构成iOS 当前构建依赖。
+  因此 iOS 新仓库的旧历史中仍能看到 Android 文件，这不构成 iOS 当前构建依赖。
 - 播放主干与录音开发分支分别保存。录音功能是否合入需单独审阅、验证。
 - 原 Issues、PR、Android Releases 留在原仓库；历史 CI 链接仍指向原验证记录。
 
 ## 当前状态
 
-本提交是 Android 清理草稿。iOS 两条分支已在隔离工作区准备，远端新仓库创建和 macOS CI 尚待完成；这些完成前不要合入本清理。原主干仍保留两端源码。
+iOS 的播放 `main` 和 `codex/ios-night-recording` 已迁入独立仓库，保留原提交历史。新仓库构建状态见 [iOS Actions](https://github.com/Resker666/minimal-sleep-ios/actions)。Android 主干切换由 [清理 PR #8](https://github.com/Resker666/minimal-sleep/pull/8) 跟踪。
 
 ## 路径与资源
 
